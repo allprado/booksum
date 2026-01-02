@@ -160,7 +160,11 @@ Gere o resumo completo agora:`
           throw new Error('Configure sua API Key do Google (Gemini) no arquivo .env')
         }
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`, {
+        // Criar AbortController para timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutos timeout
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -175,8 +179,11 @@ Gere o resumo completo agora:`
               topP: 0.95,
               maxOutputTokens: 8192,
             }
-          })
+          }),
+          signal: controller.signal
         })
+
+        clearTimeout(timeoutId)
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
