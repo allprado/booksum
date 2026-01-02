@@ -3,6 +3,11 @@ import './BookDetail.css'
 
 function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) {
     const [summaryType, setSummaryType] = useState('summary') // 'summary' (narrative) or 'analysis' (critical)
+    const [selectedFile, setSelectedFile] = useState(null)
+
+    const onFileSelect = (file) => {
+        if (file) setSelectedFile(file)
+    }
     return (
         <div className="book-detail animate-fadeIn">
             <div className="book-hero">
@@ -147,10 +152,36 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
                     </div>
                 </div>
 
+                {summaryType === 'summary' && (
+                    <div className="file-upload-section">
+                        <label className="file-upload-label">Upload do Livro (PDF ou EPUB)</label>
+                        <div className="file-upload-area" onClick={() => document.getElementById('book-file').click()}>
+                            <input
+                                type="file"
+                                id="book-file"
+                                accept=".pdf,.epub"
+                                className="hidden-input"
+                                onChange={(e) => onFileSelect(e.target.files[0])}
+                            />
+                            <div className="upload-icon">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg>
+                            </div>
+                            <span className="upload-text">
+                                {selectedFile ? selectedFile.name : 'Clique para selecionar o arquivo'}
+                            </span>
+                        </div>
+                        <p className="upload-hint">Necessário para gerar o resumo narrativo fiel ao conteúdo.</p>
+                    </div>
+                )}
+
                 <button
                     className="btn btn-accent btn-lg w-full"
-                    onClick={() => onGenerateSummary(summaryType)}
-                    disabled={loading}
+                    onClick={() => onGenerateSummary(summaryType, selectedFile)}
+                    disabled={loading || (summaryType === 'summary' && !selectedFile)}
                 >
                     {loading ? (
                         <>

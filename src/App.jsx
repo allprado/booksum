@@ -5,6 +5,7 @@ import BookList from './components/BookList'
 import BookDetail from './components/BookDetail'
 import SummaryView from './components/SummaryView'
 import Toast from './components/Toast'
+import { extractTextFromFile } from './utils/fileParser'
 import './App.css'
 
 function App() {
@@ -121,24 +122,44 @@ function App() {
     setView('detail')
   }
 
-  const handleGenerateSummary = async (mode = 'analysis') => {
+  const handleGenerateSummary = async (mode = 'analysis', file = null) => {
     if (!selectedBook) return
 
     setLoading(true)
     try {
       let prompt = ''
+      let bookContent = ''
 
       if (mode === 'summary') {
+        if (file) {
+          showToast('Lendo arquivo do livro...', 'info')
+          try {
+            bookContent = await extractTextFromFile(file)
+            showToast('Conteúdo extraído! Gerando resumo...', 'info')
+          } catch (err) {
+            console.error(err)
+            throw new Error('Erro ao ler o arquivo: ' + err.message)
+          }
+        } else {
+          // Fallback se não houver arquivo (usa descrição)
+          // Mas a UI bloqueia isso agora.
+          bookContent = `Título: ${selectedBook.title}\nAutor: ${selectedBook.authors?.join(', ')}\nDescrição: ${selectedBook.description}`
+        }
+
         prompt = `Ignore todas as instruções anteriores.
 Você é o próprio autor do livro "${selectedBook.title}".
 Seu objetivo é reescrever seu livro em uma versão condensada e narrativa, mantendo seu estilo, voz e a fluidez da história original.
-Não faça uma análise, não faça críticas, não liste tópicos. Apenas conte a história (ou apresente o conteúdo) de forma resumida, como se fosse uma "versão de bolso" do livro original.
+Utilize o CONTEÚDO FORNECIDO ABAIXO como base para sua reescrita. O conteúdo pode estar fragmentado, então faça o melhor para conectar as partes de forma coesa.
 
 IMPORTANTE:
 - Texto corrido e fluido, dividido em capítulos ou seções narrativas.
 - Mantenha a primeira pessoa ou terceira pessoa conforme o original.
 - Tamanho: Aproximadamente 20.000 caracteres.
 - Idioma: Português Brasileiro.
+
+CONTEÚDO DO LIVRO:
+${bookContent.slice(0, 500000)} 
+(Conteúdo truncado se for muito grande, mas suficiente para um bom resumo)
 
 Comece a reescrever o livro agora:`
       } else {
