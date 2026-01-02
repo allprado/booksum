@@ -174,14 +174,18 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
                                 {selectedFile ? selectedFile.name : 'Clique para selecionar o arquivo'}
                             </span>
                         </div>
-                        <p className="upload-hint">Necessário para gerar o resumo narrativo fiel ao conteúdo.</p>
+                        <p className="upload-hint">
+                            {book.md5
+                                ? 'Download automático disponível via Anna\'s Archive, ou faça upload manual.'
+                                : 'Necessário para gerar o resumo narrativo fiel ao conteúdo.'}
+                        </p>
                     </div>
                 )}
 
                 <button
                     className="btn btn-accent btn-lg w-full"
                     onClick={() => onGenerateSummary(summaryType, selectedFile)}
-                    disabled={loading || (summaryType === 'summary' && !selectedFile)}
+                    disabled={loading || (summaryType === 'summary' && !selectedFile && !book.md5)}
                 >
                     {loading ? (
                         <>

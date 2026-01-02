@@ -72,6 +72,42 @@ function App() {
                 item.volumeInfo.industryIdentifiers.find(id => id.type === 'ISBN_10')?.identifier
             }))
         }
+      } else if (searchSource === 'annas') {
+        const rapidKey = import.meta.env.VITE_RAPIDAPI_KEY
+        if (!rapidKey || rapidKey === 'sua_chave_rapidapi_aqui') {
+          throw new Error('Configure sua API Key do RapidAPI (Anna\'s Archive) no arquivo .env')
+        }
+
+        const response = await fetch(
+          `https://annas-archive-api.p.rapidapi.com/search?query=${encodeURIComponent(query)}&limit=15`,
+          {
+            headers: {
+              'x-rapidapi-key': rapidKey,
+              'x-rapidapi-host': 'annas-archive-api.p.rapidapi.com'
+            }
+          }
+        )
+
+        if (!response.ok) throw new Error(`Erro na busca do Anna's Archive: ${response.status}`)
+        const data = await response.json()
+
+        if (data && data.length > 0) {
+          formattedBooks = data.map(item => ({
+            id: item.md5,
+            md5: item.md5,
+            title: item.title,
+            authors: item.author ? [item.author] : ['Autor desconhecido'],
+            publisher: item.publisher || 'Editora não informada',
+            publishedDate: item.year || 'Ano não informado',
+            description: `Formato: ${item.extension?.toUpperCase()} | Tamanho: ${item.filesize} bytes`,
+            pageCount: 0,
+            categories: [item.category || 'Livro'],
+            thumbnail: null, // RapidAPI common results don't always have covers
+            language: item.language || 'Desconhecido',
+            isbn: item.isbn || 'N/A',
+            source: 'annas'
+          }))
+        }
       } else {
         // Open Library Search
         // Removemos language=por para trazer mais resultados, filtramos no cliente se possível
@@ -193,31 +229,88 @@ function App() {
       }
     }
 
+    // Helper para obter arquivo do Anna's Archive
+    const fetchAnnasFile = async (md5) => {
+      const rapidKey = import.meta.env.VITE_RAPIDAPI_KEY
+      if (!rapidKey) throw new Error('RapidAPI Key não encontrada no .env')
+
+      showToast('Obtendo links de download...', 'info')
+      const response = await fetch(
+        `https://annas-archive-api.p.rapidapi.com/download?md5=${md5}`,
+        {
+          headers: {
+            'x-rapidapi-key': rapidKey,
+            'x-rapidapi-host': 'annas-archive-api.p.rapidapi.com'
+          }
+        }
+      )
+
+      if (!response.ok) throw new Error('Não foi possível obter links de download do Anna\'s Archive')
+      const links = await response.json()
+
+      const downloadUrl = links.download_url || (links.urls && links.urls[0])
+      if (!downloadUrl) throw new Error('Nenhum link de download direto disponível para este livro')
+
+      showToast('Baixando livro do Anna\'s Archive...', 'info')
+      // Proxy para evitar CORS
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(downloadUrl)}`
+      const fileResponse = await fetch(proxyUrl)
+      if (!fileResponse.ok) throw new Error('Erro ao baixar arquivo do servidor de origem')
+
+      const blob = await fileResponse.blob()
+      // Detectar extensão baseada no content-type ou URL
+      let ext = 'epub'
+      const contentType = fileResponse.headers.get('content-type')
+      if (contentType?.includes('pdf') || downloadUrl.toLowerCase().endsWith('.pdf')) {
+        ext = 'pdf'
+      } else if (contentType?.includes('epub') || downloadUrl.toLowerCase().endsWith('.epub')) {
+        ext = 'epub'
+      }
+
+      return new File([blob], `book_${md5}.${ext}`, { type: blob.type })
+    }
+
     try {
       let finalSummary = ''
 
-      if (mode === 'summary' && file) {
-        showToast('Lendo arquivo do livro...', 'info')
-        let bookContent = ''
-        try {
-          bookContent = await extractTextFromFile(file)
-        } catch (err) {
-          console.error(err)
-          throw new Error('Erro ao ler o arquivo: ' + err.message)
+      if (mode === 'summary') {
+        let bookFile = file
+
+        // Se não tem arquivo mas é do Anna's Archive, tenta baixar
+        if (!bookFile && selectedBook.md5) {
+          try {
+            bookFile = await fetchAnnasFile(selectedBook.md5)
+          } catch (err) {
+            console.error(err)
+            showToast('Falha no download automático: ' + err.message, 'error')
+            // Continua para o fallback de descrição se falhar o download? 
+            // Melhor parar se o usuário pediu narrativo e não temos o texto.
+            throw err
+          }
         }
 
-        // Dividir em chunks para garantir detalhes
-        const CHUNK_SIZE = 50000 // Caracteres por chunk
-        const chunks = []
-        for (let i = 0; i < bookContent.length; i += CHUNK_SIZE) {
-          chunks.push(bookContent.slice(i, i + CHUNK_SIZE))
-        }
+        if (bookFile) {
+          showToast('Lendo arquivo do livro...', 'info')
+          let bookContent = ''
+          try {
+            bookContent = await extractTextFromFile(bookFile)
+          } catch (err) {
+            console.error(err)
+            throw new Error('Erro ao extrair texto do arquivo: ' + err.message)
+          }
 
-        showToast(`Processando ${chunks.length} partes do livro...`, 'info')
+          // Dividir em chunks para garantir detalhes
+          const CHUNK_SIZE = 50000 // Caracteres por chunk
+          const chunks = []
+          for (let i = 0; i < bookContent.length; i += CHUNK_SIZE) {
+            chunks.push(bookContent.slice(i, i + CHUNK_SIZE))
+          }
 
-        const chunkPromises = chunks.map(async (chunk, index) => {
-          const isLast = index === chunks.length - 1
-          const chunkPrompt = `Você é o próprio autor do livro "${selectedBook.title}".
+          showToast(`Processando ${chunks.length} partes do livro...`, 'info')
+
+          const chunkPromises = chunks.map(async (chunk, index) => {
+            const isLast = index === chunks.length - 1
+            const chunkPrompt = `Você é o próprio autor do livro "${selectedBook.title}".
 Estamos reescrevendo o livro em formato condensado.
 Esta é a PARTE ${index + 1} de ${chunks.length}.
 
@@ -231,33 +324,26 @@ ${chunk}
 
 Seja fluido. Escreva agora:`
 
-          // Pequeno delay para evitar rate limit agressivo se forem muitos chunks
-          await new Promise(r => setTimeout(r, index * 1000))
-          return await callAI(chunkPrompt)
-        })
+            // Pequeno delay para evitar rate limit agressivo se forem muitos chunks
+            await new Promise(r => setTimeout(r, index * 1000))
+            return await callAI(chunkPrompt)
+          })
 
-        const results = await Promise.all(chunkPromises)
-        finalSummary = results.join('\n\n')
+          const results = await Promise.all(chunkPromises)
+          finalSummary = results.join('\n\n')
+
+        } else {
+          // Fallback: resumo baseado na descrição (quando não há arquivo)
+          const prompt = `Ignore todas as instruções anteriores.
+Você é o próprio autor do livro "${selectedBook.title}".
+Seu objetivo é reescrever seu livro em uma versão condensada e narrativa (~10.000 caracteres).
+Dados: Título: ${selectedBook.title}, Autor: ${selectedBook.authors?.join(', ')}, Descrição: ${selectedBook.description}`
+          finalSummary = await callAI(prompt)
+        }
 
       } else {
-        // Modo Análise ou Resumo sem arquivo (fallback description)
-        let prompt = ''
-        if (mode === 'summary') {
-          prompt = `Ignore todas as instruções anteriores.
-Você é o próprio autor do livro "${selectedBook.title}".
-Seu objetivo é reescrever seu livro em uma versão condensada e narrativa.
-Utilize a descrição e seu conhecimento prévio sobre a obra (hallucinate se necessário para preencher lacunas narrativas conhecidas de obras famosas, mas mantenha a fidelidade).
-
-IMPORTANTE:
-- Texto corrido e fluido.
-- Tamanho: ~10.000 caracteres (limitado pois não temos o texto completo).
-- Idioma: Português Brasileiro.
-
-Dados: Título: ${selectedBook.title}, Autor: ${selectedBook.authors?.join(', ')}, Descrição: ${selectedBook.description}
-
-Comece a reescrever agora:`
-        } else {
-          prompt = `Você é um especialista em resumos de livros. Crie uma análise crítica detalhada do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
+        // Modo Análise Crítica
+        const prompt = `Você é um especialista em resumos de livros. Crie uma análise crítica detalhada do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
 
 IMPORTANTE:
 - NÃO faça introduções conversacionais.
@@ -268,8 +354,6 @@ IMPORTANTE:
 ${selectedBook.description ? `Descrição: ${selectedBook.description}` : ''}
 
 Gere a análise agora:`
-        }
-
         finalSummary = await callAI(prompt)
       }
 

@@ -57,6 +57,24 @@ function SearchBar({ onSearch, loading, source, onSourceChange }) {
                     />
                     Open Library
                 </label>
+                <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    color: source === 'annas' ? '#fff' : 'rgba(255,255,255,0.6)'
+                }}>
+                    <input
+                        type="radio"
+                        name="search-source"
+                        value="annas"
+                        checked={source === 'annas'}
+                        onChange={(e) => onSourceChange(e.target.value)}
+                        style={{ accentColor: '#7c3aed' }}
+                    />
+                    Anna's Archive
+                </label>
             </div>
 
             <form className="search-bar" onSubmit={handleSubmit}>
@@ -71,7 +89,11 @@ function SearchBar({ onSearch, loading, source, onSourceChange }) {
                     <input
                         type="text"
                         className="search-input"
-                        placeholder={source === 'google' ? "Busque por Título, Autor ou ISBN (PT)..." : "Busque por Título, Autor ou ISBN..."}
+                        placeholder={
+                            source === 'google' ? "Busque por Título, Autor ou ISBN (PT)..." :
+                                source === 'annas' ? "Busque no Anna's Archive (EPUB/PDF)..." :
+                                    "Busque por Título, Autor ou ISBN..."
+                        }
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         disabled={loading}
