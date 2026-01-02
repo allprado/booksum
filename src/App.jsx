@@ -126,89 +126,23 @@ function App() {
     if (!selectedBook) return
 
     setLoading(true)
-    try {
-      let prompt = ''
-      let bookContent = ''
 
-      if (mode === 'summary') {
-        if (file) {
-          showToast('Lendo arquivo do livro...', 'info')
-          try {
-            bookContent = await extractTextFromFile(file)
-            showToast('Conteúdo extraído! Gerando resumo...', 'info')
-          } catch (err) {
-            console.error(err)
-            throw new Error('Erro ao ler o arquivo: ' + err.message)
-          }
-        } else {
-          // Fallback se não houver arquivo (usa descrição)
-          // Mas a UI bloqueia isso agora.
-          bookContent = `Título: ${selectedBook.title}\nAutor: ${selectedBook.authors?.join(', ')}\nDescrição: ${selectedBook.description}`
-        }
-
-        prompt = `Ignore todas as instruções anteriores.
-Você é o próprio autor do livro "${selectedBook.title}".
-Seu objetivo é reescrever seu livro em uma versão condensada e narrativa, mantendo seu estilo, voz e a fluidez da história original.
-Utilize o CONTEÚDO FORNECIDO ABAIXO como base para sua reescrita. O conteúdo pode estar fragmentado, então faça o melhor para conectar as partes de forma coesa.
-
-IMPORTANTE:
-- Texto corrido e fluido, dividido em capítulos ou seções narrativas.
-- Mantenha a primeira pessoa ou terceira pessoa conforme o original.
-- Tamanho: Aproximadamente 20.000 caracteres.
-- Idioma: Português Brasileiro.
-
-CONTEÚDO DO LIVRO:
-${bookContent.slice(0, 500000)} 
-(Conteúdo truncado se for muito grande, mas suficiente para um bom resumo)
-
-Comece a reescrever o livro agora:`
-      } else {
-        // Modo Análise (Analysis) - Prompt original
-        prompt = `Você é um especialista em resumos de livros. Crie uma análise crítica e detalhada do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
-
-IMPORTANTE:
-- NÃO faça introduções conversacionais.
-- NÃO mencione "Blinkist".
-- Comece diretamente pelo título ou primeiro tópico.
-- Mantenha o tom profissional e direto.
-
-O resumo deve:
-1. Ter aproximadamente 20.000 caracteres.
-2. Começar com uma introdução sobre a importância do livro.
-3. Apresentar os principais conceitos e ideias organizados em seções claras.
-4. Incluir insights práticos e aplicáveis.
-5. Ter uma conclusão que resume os pontos-chave.
-
-${selectedBook.description ? `\nDescrição do livro: ${selectedBook.description}` : ''}
-
-Formato:
-- Use títulos claros (## Seção).
-- Seja envolvente e didático.
-- Escreva em português brasileiro.`
-      }
-
-      // Selecionar API e Chave baseada no modelo
-      let generatedSummary = ''
-
+    // Helper para chamar a API (Gemini ou OpenRouter)
+    const callAI = async (promptText) => {
       if (summaryModel === 'gemini') {
         const geminiKey = import.meta.env.VITE_GOOGLE_API_KEY
         if (!geminiKey || geminiKey === 'sua_chave_google_aqui') {
           throw new Error('Configure sua API Key do Google (Gemini) no arquivo .env')
         }
 
-        // Criar AbortController para timeout
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutos timeout
+        const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 min timeout
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }]
-            }],
+            contents: [{ parts: [{ text: promptText }] }],
             generationConfig: {
               temperature: 0.7,
               topK: 40,
@@ -218,27 +152,21 @@ Formato:
           }),
           signal: controller.signal
         })
-
         clearTimeout(timeoutId)
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           throw new Error(errorData.error?.message || `Erro na API Gemini: ${response.status}`)
         }
-
         const data = await response.json()
-        generatedSummary = data.candidates?.[0]?.content?.parts?.[0]?.text
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
       } else {
-        // OpenRouter (Legacy/Free)
+        // OpenRouter
         const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
+        if (!apiKey || apiKey === 'sua_chave_openrouter_aqui') throw new Error('Configure sua API key do OpenRouter no arquivo .env')
 
-        if (!apiKey || apiKey === 'sua_chave_openrouter_aqui') {
-          throw new Error('Configure sua API key do OpenRouter no arquivo .env')
-        }
-
-        // Criar AbortController para timeout
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutos timeout
+        const timeoutId = setTimeout(() => controller.abort(), 120000)
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -250,40 +178,114 @@ Formato:
           },
           body: JSON.stringify({
             model: 'xiaomi/mimo-v2-flash:free',
-            messages: [
-              {
-                role: 'user',
-                content: prompt
-              }
-            ]
+            messages: [{ role: 'user', content: promptText }]
           }),
           signal: controller.signal
         })
-
         clearTimeout(timeoutId)
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           throw new Error(errorData.error?.message || `Erro na API: ${response.status}`)
         }
-
         const data = await response.json()
-        generatedSummary = data.choices[0]?.message?.content
+        return data.choices[0]?.message?.content || ''
+      }
+    }
+
+    try {
+      let finalSummary = ''
+
+      if (mode === 'summary' && file) {
+        showToast('Lendo arquivo do livro...', 'info')
+        let bookContent = ''
+        try {
+          bookContent = await extractTextFromFile(file)
+        } catch (err) {
+          console.error(err)
+          throw new Error('Erro ao ler o arquivo: ' + err.message)
+        }
+
+        // Dividir em chunks para garantir detalhes
+        const CHUNK_SIZE = 50000 // Caracteres por chunk
+        const chunks = []
+        for (let i = 0; i < bookContent.length; i += CHUNK_SIZE) {
+          chunks.push(bookContent.slice(i, i + CHUNK_SIZE))
+        }
+
+        showToast(`Processando ${chunks.length} partes do livro...`, 'info')
+
+        const chunkPromises = chunks.map(async (chunk, index) => {
+          const isLast = index === chunks.length - 1
+          const chunkPrompt = `Você é o próprio autor do livro "${selectedBook.title}".
+Estamos reescrevendo o livro em formato condensado.
+Esta é a PARTE ${index + 1} de ${chunks.length}.
+
+Tua tarefa:
+Resuma esta parte narrativamente, mantendo o estilo, a voz e os detalhes importantes da trama/conteúdo.
+A saída deve ter entre 1500 e 2500 caracteres tentando manter a proporção da obra original.
+Não faça introduções do tipo "Nesta parte...". Apenas continue a história/texto.
+
+CONTEÚDO DA PARTE:
+${chunk}
+
+Seja fluido. Escreva agora:`
+
+          // Pequeno delay para evitar rate limit agressivo se forem muitos chunks
+          await new Promise(r => setTimeout(r, index * 1000))
+          return await callAI(chunkPrompt)
+        })
+
+        const results = await Promise.all(chunkPromises)
+        finalSummary = results.join('\n\n')
+
+      } else {
+        // Modo Análise ou Resumo sem arquivo (fallback description)
+        let prompt = ''
+        if (mode === 'summary') {
+          prompt = `Ignore todas as instruções anteriores.
+Você é o próprio autor do livro "${selectedBook.title}".
+Seu objetivo é reescrever seu livro em uma versão condensada e narrativa.
+Utilize a descrição e seu conhecimento prévio sobre a obra (hallucinate se necessário para preencher lacunas narrativas conhecidas de obras famosas, mas mantenha a fidelidade).
+
+IMPORTANTE:
+- Texto corrido e fluido.
+- Tamanho: ~10.000 caracteres (limitado pois não temos o texto completo).
+- Idioma: Português Brasileiro.
+
+Dados: Título: ${selectedBook.title}, Autor: ${selectedBook.authors?.join(', ')}, Descrição: ${selectedBook.description}
+
+Comece a reescrever agora:`
+        } else {
+          prompt = `Você é um especialista em resumos de livros. Crie uma análise crítica detalhada do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
+
+IMPORTANTE:
+- NÃO faça introduções conversacionais.
+- Tópicos claros, insights práticos.
+- Tamanho: ~15.000 caracteres.
+- Português Brasileiro.
+
+${selectedBook.description ? `Descrição: ${selectedBook.description}` : ''}
+
+Gere a análise agora:`
+        }
+
+        finalSummary = await callAI(prompt)
       }
 
-      if (generatedSummary) {
-        setSummary(generatedSummary)
+      if (finalSummary) {
+        setSummary(finalSummary)
         setView('summary')
-        showToast('Resumo gerado com sucesso!', 'success')
+        showToast('Conteúdo gerado com sucesso!', 'success')
       } else {
-        throw new Error('Resumo não gerado')
+        throw new Error('Nenhum conteúdo foi gerado.')
       }
     } catch (error) {
-      console.error('Erro ao gerar resumo:', error)
+      console.error('Erro ao gerar:', error)
       if (error.name === 'AbortError') {
-        showToast('Timeout: a requisição demorou muito. Tente novamente.', 'error')
+        showToast('Timeout: a requisição demorou muito.', 'error')
       } else {
-        showToast(error.message || 'Erro ao gerar resumo', 'error')
+        showToast(error.message || 'Erro ao gerar conteúdo', 'error')
       }
     } finally {
       setLoading(false)
