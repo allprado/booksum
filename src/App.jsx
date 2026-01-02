@@ -310,10 +310,18 @@ function App() {
         return true // Para outros formatos, aceita
       }
       
+      // Determina a URL base da API (produção ou desenvolvimento)
+      const apiBaseUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000'
+        : window.location.origin;
+      
       // Lista de proxies CORS para tentar
       const corsProxies = [
+        // Primeiro tenta o próprio proxy serverless
+        url => `${apiBaseUrl}/api/proxy-download?url=${encodeURIComponent(url)}`,
+        // Fallback para proxies públicos
         url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
         url => downloadUrl // Tentativa direta sem proxy
       ]
 
@@ -405,11 +413,13 @@ function App() {
         // Se não tem arquivo mas é do Anna's Archive, tenta baixar
         if (!bookFile && selectedBook.md5) {
           try {
+            showToast('Tentando baixar o livro automaticamente...', 'info')
             bookFile = await fetchAnnasFile(selectedBook.md5)
+            showToast('Livro baixado com sucesso!', 'success')
           } catch (err) {
-            console.error(err)
-            showToast('Falha no download automático. Por favor, faça o upload manual do arquivo.', 'error')
-            throw new Error('Não foi possível obter o arquivo automaticamente. Faça o upload manual para continuar.')
+            console.error('Erro no download automático:', err)
+            showToast('Não foi possível baixar automaticamente. Por favor, faça o upload manual do arquivo.', 'warning')
+            throw new Error('Download automático falhou. Por favor, faça o upload manual do arquivo PDF ou EPUB para continuar.')
           }
         }
 
