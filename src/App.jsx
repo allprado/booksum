@@ -79,7 +79,7 @@ function App() {
         }
 
         const response = await fetch(
-          `https://annas-archive-api.p.rapidapi.com/search?query=${encodeURIComponent(query)}&limit=15`,
+          `https://annas-archive-api.p.rapidapi.com/search?q=${encodeURIComponent(query)}&limit=15`,
           {
             headers: {
               'x-rapidapi-key': rapidKey,
@@ -282,11 +282,13 @@ function App() {
             bookFile = await fetchAnnasFile(selectedBook.md5)
           } catch (err) {
             console.error(err)
-            showToast('Falha no download automático: ' + err.message, 'error')
-            // Continua para o fallback de descrição se falhar o download? 
-            // Melhor parar se o usuário pediu narrativo e não temos o texto.
-            throw err
+            showToast('Falha no download automático. Por favor, faça o upload manual do arquivo.', 'error')
+            throw new Error('Não foi possível obter o arquivo automaticamente. Faça o upload manual para continuar.')
           }
+        }
+
+        if (!bookFile) {
+          throw new Error('Para gerar o resumo narrativo fiel, por favor faça o upload do arquivo PDF ou EPUB do livro.')
         }
 
         if (bookFile) {

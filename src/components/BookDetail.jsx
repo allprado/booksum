@@ -185,7 +185,7 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
                 <button
                     className="btn btn-accent btn-lg w-full"
                     onClick={() => onGenerateSummary(summaryType, selectedFile)}
-                    disabled={loading || (summaryType === 'summary' && !selectedFile && !book.md5)}
+                    disabled={loading}
                 >
                     {loading ? (
                         <>
