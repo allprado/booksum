@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import './BookDetail.css'
 
 function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) {
+    const [summaryType, setSummaryType] = useState('summary') // 'summary' (narrative) or 'analysis' (critical)
     return (
         <div className="book-detail animate-fadeIn">
             <div className="book-hero">
@@ -119,9 +121,35 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
                     </button>
                 </div>
 
+                <div className="type-selector mb-4">
+                    <div className="type-label">Tipo de Geração:</div>
+                    <div className="type-options">
+                        <button
+                            className={`type-option ${summaryType === 'summary' ? 'active' : ''}`}
+                            onClick={() => setSummaryType('summary')}
+                        >
+                            <span className="type-icon">📖</span>
+                            <div className="type-content">
+                                <span className="type-title">Resumo Narrativo</span>
+                                <span className="type-desc">Narrativa condensada na voz do autor</span>
+                            </div>
+                        </button>
+                        <button
+                            className={`type-option ${summaryType === 'analysis' ? 'active' : ''}`}
+                            onClick={() => setSummaryType('analysis')}
+                        >
+                            <span className="type-icon">🧠</span>
+                            <div className="type-content">
+                                <span className="type-title">Análise Crítica</span>
+                                <span className="type-desc">Principais conceitos e insights práticos</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
                 <button
                     className="btn btn-accent btn-lg w-full"
-                    onClick={onGenerateSummary}
+                    onClick={() => onGenerateSummary(summaryType)}
                     disabled={loading}
                 >
                     {loading ? (
