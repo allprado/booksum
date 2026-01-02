@@ -78,8 +78,19 @@ function App() {
           throw new Error('Configure sua API Key do RapidAPI (Anna\'s Archive) no arquivo .env')
         }
 
+        const searchParams = new URLSearchParams({
+          q: query,
+          cat: 'fiction, nonfiction, comic, magazine, musicalscore, other, unknown',
+          page: '1',
+          ext: 'pdf, epub, mobi, azw3',
+          source: 'libgenLi, libgenRs'
+        });
+        const url = `https://annas-archive-api.p.rapidapi.com/search?${searchParams.toString()}`;
+
+        console.log('Searching Anna\'s:', url);
+
         const response = await fetch(
-          `https://annas-archive-api.p.rapidapi.com/search?q=${encodeURIComponent(query)}&cat=fiction%2C%20nonfiction%2C%20comic%2C%20magazine%2C%20musicalscore%2C%20other%2C%20unknown&page=1&ext=pdf%2C%20epub%2C%20mobi%2C%20azw3&source=libgenLi%2C%20libgenRs`,
+          url,
           {
             headers: {
               'x-rapidapi-key': rapidKey,
@@ -234,9 +245,14 @@ function App() {
       const rapidKey = import.meta.env.VITE_RAPIDAPI_KEY
       if (!rapidKey) throw new Error('RapidAPI Key não encontrada no .env')
 
-      showToast('Obtendo links de download...', 'info')
+      const params = new URLSearchParams({ md5: md5 });
+      const url = `https://annas-archive-api.p.rapidapi.com/download?${params.toString()}`;
+
+      console.log('Fetching Anna\'s download:', url);
+      console.log('Using RapidAPI Key:', rapidKey ? 'Present' : 'Missing');
+
       const response = await fetch(
-        `https://annas-archive-api.p.rapidapi.com/download?md5=${md5}`,
+        url,
         {
           headers: {
             'x-rapidapi-key': rapidKey,
