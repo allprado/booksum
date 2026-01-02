@@ -343,8 +343,19 @@ function App() {
           })
           
           if (!fileResponse.ok) {
-            console.warn(`Falha com status ${fileResponse.status}`)
-            lastError = new Error(`HTTP ${fileResponse.status}`)
+            // Tenta ler detalhes do erro do proxy
+            let errorMsg = `HTTP ${fileResponse.status}`
+            try {
+              const errorData = await fileResponse.json()
+              if (errorData.error || errorData.details) {
+                console.warn(`Erro do proxy: ${errorData.error}`, errorData.details)
+                errorMsg = errorData.details || errorData.error
+              }
+            } catch (e) {
+              // Não é JSON, ignora
+            }
+            console.warn(`Falha com status ${fileResponse.status}: ${errorMsg}`)
+            lastError = new Error(errorMsg)
             continue
           }
 

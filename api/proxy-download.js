@@ -1,6 +1,10 @@
 // Vercel Serverless Function para proxy de downloads
 // Contorna problemas de CORS ao baixar livros
 
+export const config = {
+  maxDuration: 60, // 60 segundos para download
+};
+
 export default async function handler(req, res) {
   // Permitir CORS do seu domínio
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -37,18 +41,25 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       console.error(`Download failed with status ${response.status}`);
-      return res.status(response.status).json({ 
-        error: `Failed to download: ${response.status} ${response.statusText}` 
+      return res.status(502).json({ 
+        error: `Source server error: ${response.status} ${response.statusText}`,
+        details: 'O servidor de origem não retornou o arquivo corretamente'
       });
     }
 
     // Pegar o conteúdo
     const buffer = await response.arrayBuffer();
     
-    // Validar tamanho mínimo (10KB)
-    if (buffer.byteLength < 10000) {
-      return res.status(400).json({ 
-        error: 'File too small (possibly HTML error page)' 
+    console.log(`Downloaded ${buffer.byteLength} bytes`);
+    
+    // Validar tamanho mínimo (10KB) - mas com mais tolerância
+    if (buffer.byteLength < 1000) {
+      const preview = Buffer.from(buffer).toString('utf-8', 0, Math.min(500, buffer.byteLength));
+      console.error('File too small. Preview:', preview);
+      return res.status(502).json({ 
+        error: 'File too small (possibly HTML error page)',
+        details: 'O servidor retornou um arquivo muito pequeno, provavelmente uma página de erro',
+        size: buffer.byteLength
       });
     }
 
@@ -59,13 +70,29 @@ export default async function handler(req, res) {
     const bytes = new Uint8Array(buffer);
     const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // %PDF
     const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B; // PK (ZIP/EPUB)
+    const isMobi = bytes[0] === 0x4D && bytes[1] === 0x4F && bytes[2] === 0x42 && bytes[3] === 0x49; // MOBI
     
-    if (!isPdf && !isZip) {
-      console.error('Invalid file signature');
-      return res.status(400).json({ 
-        error: 'Invalid file format (not PDF or EPUB)' 
+    // Se começar com < ou <!DOCTYPE, é HTML
+    const isHtml = bytes[0] === 0x3C && (bytes[1] === 0x21 || bytes[1] === 0x68 || bytes[1] === 0x48);
+    
+    if (isHtml) {
+      const preview = Buffer.from(buffer).toString('utf-8', 0, Math.min(500, buffer.byteLength));
+      console.error('HTML detected instead of book file. Preview:', preview);
+      return res.status(502).json({ 
+        error: 'Invalid file format (HTML page returned)',
+        details: 'O servidor retornou uma página HTML ao invés de um arquivo de livro'
       });
     }
+    
+    if (!isPdf && !isZip && !isMobi) {
+      const signature = Array.from(bytes.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      console.error(`Invalid file signature: ${signature}`);
+      
+      // Relaxar validação - permitir passar mesmo se não reconhecer
+      console.warn('Unknown file format, but allowing download');
+    }
+
+    console.log(`Valid book file detected. Type: ${isPdf ? 'PDF' : isZip ? 'EPUB/ZIP' : isMobi ? 'MOBI' : 'UNKNOWN'}, Size: ${(buffer.byteLength / 1024 / 1024).toFixed(2)}MB`);
 
     // Retornar o arquivo
     res.setHeader('Content-Type', contentType);
@@ -78,7 +105,8 @@ export default async function handler(req, res) {
     console.error('Proxy error:', error);
     return res.status(500).json({ 
       error: 'Proxy failed',
-      message: error.message 
+      message: error.message,
+      details: 'Erro interno ao processar o download'
     });
   }
 }
