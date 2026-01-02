@@ -1,6 +1,6 @@
 import './BookDetail.css'
 
-function BookDetail({ book, onGenerateSummary, loading }) {
+function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) {
     return (
         <div className="book-detail animate-fadeIn">
             <div className="book-hero">
@@ -100,6 +100,23 @@ function BookDetail({ book, onGenerateSummary, loading }) {
                         <h4>Gerar Resumo com IA</h4>
                         <p>Resumo de ~20 minutos com os principais insights do livro</p>
                     </div>
+                </div>
+
+                <div className="model-selector">
+                    <button
+                        className={`model-option ${model === 'gemini' ? 'active' : ''}`}
+                        onClick={() => onModelChange('gemini')}
+                    >
+                        <span className="model-name">Gemini 2.5 Flash Lite</span>
+                        <span className="model-badge">Google</span>
+                    </button>
+                    <button
+                        className={`model-option ${model === 'openrouter' ? 'active' : ''}`}
+                        onClick={() => onModelChange('openrouter')}
+                    >
+                        <span className="model-name">Mimo v2 Flash</span>
+                        <span className="model-badge">Livre</span>
+                    </button>
                 </div>
 
                 <button

@@ -21,8 +21,9 @@ function App() {
   const [selectedVoice, setSelectedVoice] = useState('pt-BR-FranciscaNeural')
   const [speechRate, setSpeechRate] = useState('1.0')
 
-  // Fonte de busca
+  // Fonte de busca e Modelo de resumo
   const [searchSource, setSearchSource] = useState('google')
+  const [summaryModel, setSummaryModel] = useState('gemini') // gemini, openrouter
 
   const availableVoices = [
     { id: 'pt-BR-FranciscaNeural', label: 'Francisca (Feminina)', gender: 'Female' },
@@ -150,46 +151,82 @@ Formato do resumo:
 
 Gere o resumo completo agora:`
 
-      // Verificar se a API key está configurada
-      const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
+      // Selecionar API e Chave baseada no modelo
+      let generatedSummary = ''
 
-      if (!apiKey || apiKey === 'sua_chave_openrouter_aqui') {
-        throw new Error('Configure sua API key do OpenRouter no arquivo .env')
-      }
+      if (summaryModel === 'gemini') {
+        const geminiKey = import.meta.env.VITE_GOOGLE_API_KEY
+        if (!geminiKey || geminiKey === 'sua_chave_google_aqui') {
+          throw new Error('Configure sua API Key do Google (Gemini) no arquivo .env')
+        }
 
-      // Criar AbortController para timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutos timeout
-
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'BookSum'
-        },
-        body: JSON.stringify({
-          model: 'xiaomi/mimo-v2-flash:free',
-          messages: [
-            {
-              role: 'user',
-              content: prompt
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 8192,
             }
-          ]
-        }),
-        signal: controller.signal
-      })
+          })
+        })
 
-      clearTimeout(timeoutId)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error?.message || `Erro na API Gemini: ${response.status}`)
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error?.message || `Erro na API: ${response.status}`)
+        const data = await response.json()
+        generatedSummary = data.candidates?.[0]?.content?.parts?.[0]?.text
+      } else {
+        // OpenRouter (Legacy/Free)
+        const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
+
+        if (!apiKey || apiKey === 'sua_chave_openrouter_aqui') {
+          throw new Error('Configure sua API key do OpenRouter no arquivo .env')
+        }
+
+        // Criar AbortController para timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutos timeout
+
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'BookSum'
+          },
+          body: JSON.stringify({
+            model: 'xiaomi/mimo-v2-flash:free',
+            messages: [
+              {
+                role: 'user',
+                content: prompt
+              }
+            ]
+          }),
+          signal: controller.signal
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error?.message || `Erro na API: ${response.status}`)
+        }
+
+        const data = await response.json()
+        generatedSummary = data.choices[0]?.message?.content
       }
-
-      const data = await response.json()
-      const generatedSummary = data.choices[0]?.message?.content
 
       if (generatedSummary) {
         setSummary(generatedSummary)
@@ -399,6 +436,8 @@ Gere o resumo completo agora:`
             book={selectedBook}
             onGenerateSummary={handleGenerateSummary}
             loading={loading}
+            model={summaryModel}
+            onModelChange={setSummaryModel}
           />
         )}
 
