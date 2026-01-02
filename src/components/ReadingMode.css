@@ -1,0 +1,305 @@
+.reading-mode {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Theme Variations */
+.theme-dark {
+    --reading-bg: #0f0f23;
+    --reading-text: #e2e8f0;
+    --reading-heading: #f8fafc;
+    --reading-muted: #94a3b8;
+    --reading-highlight: #a78bfa;
+    --reading-surface: rgba(26, 26, 46, 0.95);
+}
+
+.theme-light {
+    --reading-bg: #fafafa;
+    --reading-text: #1f2937;
+    --reading-heading: #111827;
+    --reading-muted: #6b7280;
+    --reading-highlight: #7c3aed;
+    --reading-surface: rgba(255, 255, 255, 0.95);
+}
+
+.theme-sepia {
+    --reading-bg: #f5ebe0;
+    --reading-text: #44403c;
+    --reading-heading: #292524;
+    --reading-muted: #78716c;
+    --reading-highlight: #92400e;
+    --reading-surface: rgba(250, 240, 230, 0.95);
+}
+
+.reading-mode {
+    background: var(--reading-bg);
+    color: var(--reading-text);
+}
+
+/* Progress Bar */
+.reading-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+.reading-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
+    transition: width 0.1s linear;
+}
+
+/* Header */
+.reading-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md);
+    padding-top: calc(var(--space-md) + env(safe-area-inset-top));
+    background: var(--reading-surface);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.reading-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: 1px solid rgba(128, 128, 128, 0.3);
+    border-radius: var(--radius-lg);
+    color: var(--reading-text);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.reading-close-btn:hover {
+    background: rgba(128, 128, 128, 0.1);
+}
+
+.reading-meta {
+    display: flex;
+    align-items: center;
+}
+
+.reading-time {
+    font-size: 0.875rem;
+    color: var(--reading-muted);
+}
+
+.reading-controls {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.reading-control-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid rgba(128, 128, 128, 0.3);
+    border-radius: var(--radius-md);
+    color: var(--reading-text);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-weight: 600;
+}
+
+.reading-control-btn:hover:not(:disabled) {
+    background: rgba(128, 128, 128, 0.1);
+}
+
+.reading-control-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Content */
+.reading-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-lg);
+    padding-bottom: calc(var(--space-3xl) + 60px);
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.reading-book-header {
+    text-align: center;
+    margin-bottom: var(--space-2xl);
+    padding-bottom: var(--space-xl);
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.reading-title {
+    font-family: var(--font-serif);
+    font-size: 1.75em;
+    font-weight: 600;
+    color: var(--reading-heading);
+    margin-bottom: var(--space-sm);
+    line-height: 1.3;
+}
+
+.reading-author {
+    font-size: 1em;
+    color: var(--reading-muted);
+    margin-bottom: var(--space-md);
+}
+
+.reading-stats {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-md);
+    font-size: 0.875em;
+    color: var(--reading-muted);
+}
+
+.reading-text {
+    max-width: 680px;
+    margin: 0 auto;
+    line-height: 1.8;
+}
+
+.reading-text .reading-p {
+    margin-bottom: 1.5em;
+    color: var(--reading-text);
+}
+
+.reading-text .reading-h2 {
+    font-family: var(--font-serif);
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--reading-heading);
+    margin: 2em 0 1em;
+}
+
+.reading-text .reading-h3 {
+    font-size: 1.25em;
+    font-weight: 600;
+    color: var(--reading-heading);
+    margin: 1.5em 0 0.75em;
+}
+
+.reading-text strong {
+    color: var(--reading-highlight);
+    font-weight: 600;
+}
+
+.reading-text em {
+    font-style: italic;
+}
+
+/* End Section */
+.reading-end {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--space-3xl) var(--space-lg);
+    margin-top: var(--space-2xl);
+    border-top: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.reading-end-icon {
+    font-size: 3rem;
+    margin-bottom: var(--space-lg);
+}
+
+.reading-end h3 {
+    font-size: 1.5rem;
+    color: var(--reading-heading);
+    margin-bottom: var(--space-sm);
+}
+
+.reading-end p {
+    color: var(--reading-muted);
+    margin-bottom: var(--space-xl);
+}
+
+/* Footer */
+.reading-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md);
+    padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom));
+    background: var(--reading-surface);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.theme-switcher {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.theme-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.theme-btn.active {
+    border-color: var(--color-primary);
+}
+
+.theme-preview {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.theme-preview-dark {
+    background: #0f0f23;
+}
+
+.theme-preview-light {
+    background: #fafafa;
+}
+
+.theme-preview-sepia {
+    background: #f5ebe0;
+}
+
+.reading-progress-text {
+    font-size: 0.875rem;
+    color: var(--reading-muted);
+    font-weight: 500;
+}
+
+/* Scrollbar */
+.reading-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.reading-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.reading-content::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.3);
+    border-radius: 2px;
+}
