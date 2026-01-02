@@ -14,6 +14,7 @@ function App() {
   const [summary, setSummary] = useState(null)
   const [audioUrl, setAudioUrl] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
   const [toast, setToast] = useState(null)
 
   // Configurações de áudio
@@ -39,7 +40,7 @@ function App() {
   const handleSearch = useCallback(async (query) => {
     if (!query.trim()) return
 
-    setLoading(true)
+    setIsSearching(true)
     try {
       let formattedBooks = []
 
@@ -108,7 +109,7 @@ function App() {
       console.error('Erro na busca:', error)
       showToast('Erro ao buscar livros', 'error')
     } finally {
-      setLoading(false)
+      setIsSearching(false)
     }
   }, [searchSource, showToast])
 
@@ -151,6 +152,7 @@ Gere o resumo completo agora:`
 
       // Verificar se a API key está configurada
       const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
+
       if (!apiKey || apiKey === 'sua_chave_openrouter_aqui') {
         throw new Error('Configure sua API key do OpenRouter no arquivo .env')
       }
@@ -370,7 +372,7 @@ Gere o resumo completo agora:`
 
             <SearchBar
               onSearch={handleSearch}
-              loading={loading}
+              loading={isSearching}
               source={searchSource}
               onSourceChange={setSearchSource}
             />
@@ -379,11 +381,11 @@ Gere o resumo completo agora:`
               <BookList
                 books={books}
                 onSelectBook={handleSelectBook}
-                loading={loading}
+                loading={isSearching}
               />
             )}
 
-            {!loading && books.length === 0 && (
+            {!isSearching && books.length === 0 && (
               <div className="empty-state">
                 <div className="empty-icon">📚</div>
                 <p>Busque por livros em português para começar</p>
