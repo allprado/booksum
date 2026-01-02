@@ -102,7 +102,7 @@ function App() {
             description: `Formato: ${item.format?.toUpperCase()} | Tamanho: ${item.size}`,
             pageCount: 0,
             categories: [item.genre || 'Livro'],
-            thumbnail: item.imgUrl || null,
+            thumbnail: item.imgUrl ? item.imgUrl.replace('sk//', 'sk/') : null,
             language: 'Desconhecido',
             isbn: 'N/A',
             source: 'annas'
@@ -245,8 +245,24 @@ function App() {
         }
       )
 
-      if (!response.ok) throw new Error('Não foi possível obter links de download do Anna\'s Archive')
-      const links = await response.json()
+      if (!response.ok) {
+        let errorMsg = `Erro ${response.status} ao obter links`
+        try {
+          const errData = await response.json()
+          errorMsg += `: ${JSON.stringify(errData)}`
+        } catch (e) {
+          const errText = await response.text().catch(() => '')
+          if (errText) errorMsg += `: ${errText}`
+        }
+        throw new Error(errorMsg)
+      }
+
+      let links
+      try {
+        links = await response.json()
+      } catch (e) {
+        throw new Error('A API retornou um formato inesperado ao buscar links de download.')
+      }
 
       const downloadUrl = Array.isArray(links) ? links[0] : (links.download_url || (links.urls && links.urls[0]))
       if (!downloadUrl) throw new Error('Nenhum link de download direto disponível para este livro')
