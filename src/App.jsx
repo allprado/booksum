@@ -79,7 +79,7 @@ function App() {
         }
 
         const response = await fetch(
-          `https://annas-archive-api.p.rapidapi.com/search?q=${encodeURIComponent(query)}&limit=15`,
+          `https://annas-archive-api.p.rapidapi.com/search?q=${encodeURIComponent(query)}&cat=fiction%2C%20nonfiction%2C%20comic%2C%20magazine%2C%20musicalscore%2C%20other%2C%20unknown&page=1&ext=pdf%2C%20epub%2C%20mobi%2C%20azw3&source=libgenLi%2C%20libgenRs`,
           {
             headers: {
               'x-rapidapi-key': rapidKey,
@@ -91,20 +91,20 @@ function App() {
         if (!response.ok) throw new Error(`Erro na busca do Anna's Archive: ${response.status}`)
         const data = await response.json()
 
-        if (data && data.length > 0) {
-          formattedBooks = data.map(item => ({
+        if (data && data.books && data.books.length > 0) {
+          formattedBooks = data.books.map(item => ({
             id: item.md5,
             md5: item.md5,
             title: item.title,
             authors: item.author ? [item.author] : ['Autor desconhecido'],
-            publisher: item.publisher || 'Editora não informada',
+            publisher: 'Editora não informada',
             publishedDate: item.year || 'Ano não informado',
-            description: `Formato: ${item.extension?.toUpperCase()} | Tamanho: ${item.filesize} bytes`,
+            description: `Formato: ${item.format?.toUpperCase()} | Tamanho: ${item.size}`,
             pageCount: 0,
-            categories: [item.category || 'Livro'],
-            thumbnail: null, // RapidAPI common results don't always have covers
-            language: item.language || 'Desconhecido',
-            isbn: item.isbn || 'N/A',
+            categories: [item.genre || 'Livro'],
+            thumbnail: item.imgUrl || null,
+            language: 'Desconhecido',
+            isbn: 'N/A',
             source: 'annas'
           }))
         }
@@ -248,7 +248,7 @@ function App() {
       if (!response.ok) throw new Error('Não foi possível obter links de download do Anna\'s Archive')
       const links = await response.json()
 
-      const downloadUrl = links.download_url || (links.urls && links.urls[0])
+      const downloadUrl = Array.isArray(links) ? links[0] : (links.download_url || (links.urls && links.urls[0]))
       if (!downloadUrl) throw new Error('Nenhum link de download direto disponível para este livro')
 
       showToast('Baixando livro do Anna\'s Archive...', 'info')
