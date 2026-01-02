@@ -284,12 +284,57 @@ function App() {
       if (!downloadUrl) throw new Error('Nenhum link de download direto disponível para este livro')
 
       showToast('Baixando livro do Anna\'s Archive...', 'info')
-      // Proxy para evitar CORS
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(downloadUrl)}`
-      const fileResponse = await fetch(proxyUrl)
-      if (!fileResponse.ok) throw new Error('Erro ao baixar arquivo do servidor de origem')
+      
+      // Lista de proxies CORS para tentar
+      const corsProxies = [
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        url => `https://cors-anywhere.herokuapp.com/${url}`,
+        url => downloadUrl // Tentativa direta sem proxy
+      ]
+
+      let fileResponse = null
+      let lastError = null
+
+      // Tenta cada proxy em sequência
+      for (const proxyFn of corsProxies) {
+        try {
+          const proxyUrl = proxyFn(downloadUrl)
+          console.log('Tentando download via:', proxyUrl)
+          
+          fileResponse = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/octet-stream, application/pdf, application/epub+zip, */*'
+            }
+          })
+          
+          if (fileResponse.ok) {
+            console.log('Download bem-sucedido via proxy')
+            break
+          } else {
+            console.warn(`Falha com status ${fileResponse.status}`)
+            lastError = new Error(`HTTP ${fileResponse.status}`)
+            fileResponse = null
+          }
+        } catch (err) {
+          console.warn('Erro ao tentar proxy:', err.message)
+          lastError = err
+          fileResponse = null
+        }
+      }
+
+      if (!fileResponse || !fileResponse.ok) {
+        throw new Error('Não foi possível baixar o arquivo. Todos os métodos falharam. ' + (lastError?.message || ''))
+      }
 
       const blob = await fileResponse.blob()
+      
+      // Validar se o blob não está vazio
+      if (blob.size === 0) {
+        throw new Error('O arquivo baixado está vazio')
+      }
+
       // Detectar extensão baseada no content-type ou URL
       let ext = 'epub'
       const contentType = fileResponse.headers.get('content-type')
@@ -297,9 +342,12 @@ function App() {
         ext = 'pdf'
       } else if (contentType?.includes('epub') || downloadUrl.toLowerCase().endsWith('.epub')) {
         ext = 'epub'
+      } else if (downloadUrl.toLowerCase().endsWith('.mobi')) {
+        ext = 'mobi'
       }
 
-      return new File([blob], `book_${md5}.${ext}`, { type: blob.type })
+      console.log(`Arquivo baixado com sucesso: ${(blob.size / 1024 / 1024).toFixed(2)} MB`)
+      return new File([blob], `book_${md5}.${ext}`, { type: blob.type || 'application/octet-stream' })
     }
 
     try {
