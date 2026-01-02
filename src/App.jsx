@@ -285,15 +285,40 @@ function App() {
 
       showToast('Baixando livro do Anna\'s Archive...', 'info')
       
+      // Helper para validar se o conteúdo é binário válido
+      const isValidBookFile = async (blob, expectedExt) => {
+        // Verifica tamanho mínimo (10KB)
+        if (blob.size < 10000) return false
+        
+        // Lê os primeiros bytes para verificar assinatura do arquivo
+        const buffer = await blob.slice(0, 100).arrayBuffer()
+        const bytes = new Uint8Array(buffer)
+        
+        // Verifica assinatura de PDF
+        if (expectedExt === 'pdf') {
+          const pdfSignature = '%PDF'
+          const signature = String.fromCharCode(...bytes.slice(0, 4))
+          return signature === pdfSignature
+        }
+        
+        // Verifica assinatura de EPUB (é um arquivo ZIP)
+        if (expectedExt === 'epub') {
+          // ZIP signature: PK (0x50 0x4B)
+          return bytes[0] === 0x50 && bytes[1] === 0x4B
+        }
+        
+        return true // Para outros formatos, aceita
+      }
+      
       // Lista de proxies CORS para tentar
       const corsProxies = [
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
         url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        url => `https://cors-anywhere.herokuapp.com/${url}`,
+        url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
         url => downloadUrl // Tentativa direta sem proxy
       ]
 
       let fileResponse = null
+      let blob = null
       let lastError = null
 
       // Tenta cada proxy em sequência
@@ -309,28 +334,49 @@ function App() {
             }
           })
           
-          if (fileResponse.ok) {
-            console.log('Download bem-sucedido via proxy')
-            break
-          } else {
+          if (!fileResponse.ok) {
             console.warn(`Falha com status ${fileResponse.status}`)
             lastError = new Error(`HTTP ${fileResponse.status}`)
+            continue
+          }
+
+          // Tenta obter o blob
+          blob = await fileResponse.blob()
+          
+          // Detectar extensão esperada
+          let expectedExt = 'epub'
+          const contentType = fileResponse.headers.get('content-type')
+          if (contentType?.includes('pdf') || downloadUrl.toLowerCase().endsWith('.pdf')) {
+            expectedExt = 'pdf'
+          } else if (contentType?.includes('epub') || downloadUrl.toLowerCase().endsWith('.epub')) {
+            expectedExt = 'epub'
+          }
+          
+          // Valida se é um arquivo válido
+          const isValid = await isValidBookFile(blob, expectedExt)
+          
+          if (isValid) {
+            console.log('Download bem-sucedido e arquivo validado')
+            break
+          } else {
+            console.warn('Arquivo baixado é inválido (possivelmente HTML)')
+            lastError = new Error('Arquivo inválido')
+            blob = null
             fileResponse = null
           }
         } catch (err) {
           console.warn('Erro ao tentar proxy:', err.message)
           lastError = err
+          blob = null
           fileResponse = null
         }
       }
 
-      if (!fileResponse || !fileResponse.ok) {
+      if (!blob || !fileResponse) {
         throw new Error('Não foi possível baixar o arquivo. Todos os métodos falharam. ' + (lastError?.message || ''))
       }
 
-      const blob = await fileResponse.blob()
-      
-      // Validar se o blob não está vazio
+      // Validar tamanho mínimo
       if (blob.size === 0) {
         throw new Error('O arquivo baixado está vazio')
       }
@@ -346,7 +392,7 @@ function App() {
         ext = 'mobi'
       }
 
-      console.log(`Arquivo baixado com sucesso: ${(blob.size / 1024 / 1024).toFixed(2)} MB`)
+      console.log(`Arquivo baixado com sucesso: ${(blob.size / 1024 / 1024).toFixed(2)} MB, tipo: ${ext}`)
       return new File([blob], `book_${md5}.${ext}`, { type: blob.type || 'application/octet-stream' })
     }
 
