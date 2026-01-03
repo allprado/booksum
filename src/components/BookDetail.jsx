@@ -133,7 +133,7 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
                             className={`type-option ${summaryType === 'summary' ? 'active' : ''}`}
                             onClick={() => setSummaryType('summary')}
                         >
-                            <span className="type-icon">📖</span>
+                            <span className="material-symbols-rounded type-icon">auto_stories</span>
                             <div className="type-content">
                                 <span className="type-title">Resumo Narrativo</span>
                                 <span className="type-desc">Narrativa condensada na voz do autor</span>
@@ -143,7 +143,7 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
                             className={`type-option ${summaryType === 'analysis' ? 'active' : ''}`}
                             onClick={() => setSummaryType('analysis')}
                         >
-                            <span className="type-icon">🧠</span>
+                            <span className="material-symbols-rounded type-icon">psychology</span>
                             <div className="type-content">
                                 <span className="type-title">Análise Crítica</span>
                                 <span className="type-desc">Principais conceitos e insights práticos</span>

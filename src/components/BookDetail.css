@@ -305,6 +305,11 @@
 
 .type-icon {
     font-size: 1.5rem;
+    color: var(--text-muted);
+}
+
+.type-option.active .type-icon {
+    color: var(--color-primary);
 }
 
 .type-content {
