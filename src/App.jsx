@@ -583,28 +583,135 @@ Seja fluido. Escreva agora:`
 
         } else {
           // Modo público: gera com base no conhecimento da IA
-          const prompt = `Você é um especialista em resumos narrativos de livros.
-
-LIVRO: "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}
-${selectedBook.description ? `Descrição: ${selectedBook.description}` : ''}
-
-IMPORTANTE:
-- Se você NÃO possui conhecimento suficiente sobre este livro específico, responda EXATAMENTE: "CONHECIMENTO_INSUFICIENTE"
-- Caso contrário, crie um resumo narrativo completo e fiel (~10.000 caracteres)
-- Mantenha o estilo e voz do autor original
-- Não faça introduções como "Este livro...". Vá direto à narrativa.
-- Português Brasileiro
-
-Gere o resumo narrativo agora:`
+          // Primeiro, verifica se a IA possui conhecimento sobre o livro
+          const verificationPrompt = `Você conhece o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}?
+Responda apenas SIM ou NÃO.`
           
-          const aiResponse = await callAI(prompt)
+          const verification = await callAI(verificationPrompt)
           
-          // Verifica se a IA informou falta de conhecimento
-          if (aiResponse.trim() === 'CONHECIMENTO_INSUFICIENTE' || aiResponse.includes('CONHECIMENTO_INSUFICIENTE')) {
+          if (verification.trim().toUpperCase().includes('NÃO') || verification.trim().toUpperCase() === 'NAO') {
             throw new Error('Não possuo conhecimento suficiente sobre este livro para gerar um resumo narrativo fiel. Por favor, tente outro livro ou use a versão admin com upload de arquivo.')
           }
           
-          finalSummary = aiResponse
+          // Identifica o tipo de obra
+          const typePrompt = `O livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')} é:
+A) Um romance/narrativa contínua
+B) Uma coletânea de contos, crônicas ou artigos independentes
+
+Responda apenas A ou B.`
+          
+          const typeResponse = await callAI(typePrompt)
+          const isCollection = typeResponse.trim().toUpperCase().includes('B')
+          
+          if (isCollection) {
+            // Para coletâneas: resumir cada conto/crônica/artigo separadamente
+            showToast('Identificado como coletânea. Gerando resumos individuais...', 'info')
+            
+            const listPrompt = `Liste os títulos dos principais contos, crônicas ou artigos do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
+Liste APENAS os títulos, um por linha, sem numeração ou formatação adicional.
+Máximo de 15 itens.`
+            
+            const itemsList = await callAI(listPrompt)
+            const items = itemsList.split('\n').filter(item => item.trim().length > 0).slice(0, 15)
+            
+            showToast(`Resumindo ${items.length} itens...`, 'info')
+            
+            const itemSummaries = []
+            for (let i = 0; i < items.length; i++) {
+              const itemTitle = items[i].trim()
+              const itemPrompt = `Faça um resumo narrativo do conto/crônica/artigo "${itemTitle}" do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
+
+IMPORTANTE:
+- Resumo entre 800-1500 caracteres
+- Mantenha o estilo e voz do autor
+- Não faça introduções. Vá direto ao conteúdo.
+- Português Brasileiro
+
+Título: ${itemTitle}
+
+Resumo:`
+              
+              await new Promise(r => setTimeout(r, i * 800)) // Delay para evitar rate limit
+              const itemSummary = await callAI(itemPrompt)
+              itemSummaries.push(`**${itemTitle}**\n\n${itemSummary}`)
+            }
+            
+            finalSummary = itemSummaries.join('\n\n---\n\n')
+            
+          } else {
+            // Para narrativas contínuas: dividir em partes e depois unificar
+            showToast('Identificado como narrativa contínua. Dividindo em partes...', 'info')
+            
+            // Identifica as principais partes do livro
+            const structurePrompt = `Divida o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')} em suas principais partes estruturais (mínimo 3, máximo 6 partes).
+Pode ser por capítulos, arcos narrativos ou seções temáticas.
+Liste APENAS os títulos/descrições das partes, uma por linha, sem numeração.
+
+Exemplo de formato:
+Início - Apresentação dos personagens
+Desenvolvimento - O conflito principal
+Clímax - A resolução
+Conclusão - Desfecho`
+            
+            const structureResponse = await callAI(structurePrompt)
+            const parts = structureResponse.split('\n').filter(p => p.trim().length > 0).slice(0, 6)
+            
+            if (parts.length < 3) {
+              // Se não conseguiu dividir adequadamente, força 3 partes genéricas
+              parts.length = 0
+              parts.push('Início e apresentação')
+              parts.push('Desenvolvimento e conflitos principais')
+              parts.push('Clímax e desfecho')
+            }
+            
+            showToast(`Gerando resumo de ${parts.length} partes...`, 'info')
+            
+            // Gera resumo de cada parte
+            const partSummaries = []
+            for (let i = 0; i < parts.length; i++) {
+              const partDesc = parts[i].trim()
+              const partPrompt = `Você é um especialista em resumos narrativos.
+Faça um resumo narrativo detalhado da seguinte parte do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}:
+
+PARTE ${i + 1} de ${parts.length}: ${partDesc}
+
+IMPORTANTE:
+- Resumo entre 1500-2500 caracteres
+- Mantenha o estilo e voz do autor original
+- Inclua detalhes importantes da trama, personagens e acontecimentos
+- Não faça introduções como "Nesta parte...". Vá direto à narrativa.
+- Português Brasileiro
+
+Gere o resumo narrativo desta parte agora:`
+              
+              await new Promise(r => setTimeout(r, i * 1000)) // Delay para evitar rate limit
+              const partSummary = await callAI(partPrompt)
+              partSummaries.push(partSummary.trim())
+            }
+            
+            // Unifica os resumos em um texto coeso
+            showToast('Unificando resumos...', 'info')
+            
+            const unificationPrompt = `Você é um editor literário especialista.
+Unifique os seguintes resumos de partes do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')} em um único resumo narrativo coeso.
+
+RESUMOS DAS PARTES:
+
+${partSummaries.map((summary, i) => `=== PARTE ${i + 1} ===\n${summary}`).join('\n\n')}
+
+IMPORTANTE:
+- Crie um resumo narrativo único e fluido (~${partSummaries.join(' ').length * 0.9} caracteres)
+- Elimine repetições e redundâncias
+- Mantenha todos os detalhes importantes
+- Mantenha o estilo e voz do autor original
+- Não faça introduções. Vá direto à narrativa.
+- Português Brasileiro
+- Use transições naturais entre as partes
+
+Gere o resumo unificado agora:`
+            
+            finalSummary = await callAI(unificationPrompt)
+          }
         }
 
       } else {
