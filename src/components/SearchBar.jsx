@@ -1,18 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './SearchBar.css'
 
 function SearchBar({ onSearch, loading, source, onSourceChange }) {
     const [query, setQuery] = useState('')
-
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            if (query.trim()) {
-                onSearch(query)
-            }
-        }, 600)
-
-        return () => clearTimeout(timeoutId)
-    }, [query, onSearch])
 
     const handleSubmit = (e) => {
         e.preventDefault()
