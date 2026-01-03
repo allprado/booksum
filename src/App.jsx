@@ -270,6 +270,12 @@ function App() {
           const errText = await response.text().catch(() => '')
           if (errText) errorMsg += `: ${errText}`
         }
+        
+        // Mensagem mais clara para erro 404
+        if (response.status === 404) {
+          throw new Error('Este livro não possui download disponível no Anna\'s Archive. Por favor, faça o upload manual do arquivo PDF ou EPUB.')
+        }
+        
         throw new Error(errorMsg)
       }
 
