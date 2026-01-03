@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './BookDetail.css'
 
-function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) {
+function BookDetail({ book, onGenerateSummary, loading, model, onModelChange, showModelSelector = true, showFileUpload = true }) {
     const [summaryType, setSummaryType] = useState('summary') // 'summary' (narrative) or 'analysis' (critical)
     const [selectedFile, setSelectedFile] = useState(null)
 
@@ -107,22 +107,24 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
                     </div>
                 </div>
 
-                <div className="model-selector">
-                    <button
-                        className={`model-option ${model === 'gemini' ? 'active' : ''}`}
-                        onClick={() => onModelChange('gemini')}
-                    >
-                        <span className="model-name">Gemini 2.5 Flash Lite</span>
-                        <span className="model-badge">Google</span>
-                    </button>
-                    <button
-                        className={`model-option ${model === 'openrouter' ? 'active' : ''}`}
-                        onClick={() => onModelChange('openrouter')}
-                    >
-                        <span className="model-name">Mimo v2 Flash</span>
-                        <span className="model-badge">Livre</span>
-                    </button>
-                </div>
+                {showModelSelector && (
+                    <div className="model-selector">
+                        <button
+                            className={`model-option ${model === 'gemini' ? 'active' : ''}`}
+                            onClick={() => onModelChange('gemini')}
+                        >
+                            <span className="model-name">Gemini 2.5 Flash Lite</span>
+                            <span className="model-badge">Google</span>
+                        </button>
+                        <button
+                            className={`model-option ${model === 'openrouter' ? 'active' : ''}`}
+                            onClick={() => onModelChange('openrouter')}
+                        >
+                            <span className="model-name">Mimo v2 Flash</span>
+                            <span className="model-badge">Livre</span>
+                        </button>
+                    </div>
+                )}
 
                 <div className="type-selector mb-4">
                     <div className="type-label">Tipo de Geração:</div>
@@ -150,7 +152,7 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
                     </div>
                 </div>
 
-                {summaryType === 'summary' && (
+                {summaryType === 'summary' && showFileUpload && (
                     <div className="file-upload-section">
                         <label className="file-upload-label">Upload do Livro (PDF ou EPUB)</label>
                         <div className="file-upload-area" onClick={() => document.getElementById('book-file').click()}>

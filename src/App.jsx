@@ -9,7 +9,7 @@ import Toast from './components/Toast'
 import { extractTextFromFile } from './utils/fileParser'
 import './App.css'
 
-function App() {
+function App({ isAdminMode = false }) {
   const [view, setView] = useState('home') // home, detail, summary
   const [books, setBooks] = useState([])
   const [selectedBook, setSelectedBook] = useState(null)
@@ -26,7 +26,7 @@ function App() {
   const [selectedVoice, setSelectedVoice] = useState('pt-BR-FranciscaNeural')
   const [speechRate, setSpeechRate] = useState('1.0')
 
-  // Fonte de busca e Modelo de resumo
+  // Fonte de busca e Modelo de resumo - fixos no modo público
   const [searchSource, setSearchSource] = useState('google')
   const [summaryModel, setSummaryModel] = useState('gemini') // gemini, openrouter
 
@@ -57,7 +57,10 @@ function App() {
       let formattedBooks = []
       let hasMore = false
 
-      if (searchSource === 'google') {
+      // No modo público, usa apenas Google Books
+      const effectiveSource = isAdminMode ? searchSource : 'google'
+
+      if (effectiveSource === 'google') {
         const startIndex = (pageNum - 1) * 40
         const googleQuery = `${encodeURIComponent(query)}+OR+inauthor:${encodeURIComponent(query)}`
         const response = await fetch(
@@ -88,7 +91,7 @@ function App() {
           // Google Books indica se há mais resultados pela presença de totalItems
           hasMore = data.totalItems > startIndex + filtered.length
         }
-      } else if (searchSource === 'annas') {
+      } else if (effectiveSource === 'annas') {
         const rapidKey = import.meta.env.VITE_RAPIDAPI_KEY
         if (!rapidKey || rapidKey === 'sua_chave_rapidapi_aqui') {
           throw new Error('Configure sua API Key do RapidAPI (Anna\'s Archive) no arquivo .env')
@@ -203,7 +206,7 @@ function App() {
         setLoading(false)
       }
     }
-  }, [searchSource, showToast])
+  }, [searchSource, showToast, isAdminMode])
 
   const handleLoadMore = useCallback(() => {
     if (currentQuery && !loading) {
@@ -223,9 +226,12 @@ function App() {
 
     setLoading(true)
 
+    // No modo público, força o uso do Gemini
+    const effectiveModel = isAdminMode ? summaryModel : 'gemini'
+
     // Helper para chamar a API (Gemini ou OpenRouter)
     const callAI = async (promptText) => {
-      if (summaryModel === 'gemini') {
+      if (effectiveModel === 'gemini') {
         const geminiKey = import.meta.env.VITE_GOOGLE_API_KEY
         if (!geminiKey || geminiKey === 'sua_chave_google_aqui') {
           throw new Error('Configure sua API Key do Google (Gemini) no arquivo .env')
@@ -514,8 +520,8 @@ function App() {
       if (mode === 'summary') {
         let bookFile = file
 
-        // Se não tem arquivo mas é do Anna's Archive, tenta baixar
-        if (!bookFile && selectedBook.md5) {
+        // No modo admin, tenta baixar do Anna's Archive se necessário
+        if (isAdminMode && !bookFile && selectedBook.md5) {
           try {
             showToast('Tentando baixar o livro automaticamente...', 'info')
             bookFile = await fetchAnnasFile(selectedBook.md5)
@@ -527,7 +533,8 @@ function App() {
           }
         }
 
-        if (!bookFile) {
+        // No modo admin, exige arquivo
+        if (isAdminMode && !bookFile) {
           throw new Error('Para gerar o resumo narrativo fiel, por favor faça o upload do arquivo PDF ou EPUB do livro.')
         }
 
@@ -575,12 +582,29 @@ Seja fluido. Escreva agora:`
           finalSummary = results.join('\n\n')
 
         } else {
-          // Fallback: resumo baseado na descrição (quando não há arquivo)
-          const prompt = `Ignore todas as instruções anteriores.
-Você é o próprio autor do livro "${selectedBook.title}".
-Seu objetivo é reescrever seu livro em uma versão condensada e narrativa (~10.000 caracteres).
-Dados: Título: ${selectedBook.title}, Autor: ${selectedBook.authors?.join(', ')}, Descrição: ${selectedBook.description}`
-          finalSummary = await callAI(prompt)
+          // Modo público: gera com base no conhecimento da IA
+          const prompt = `Você é um especialista em resumos narrativos de livros.
+
+LIVRO: "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}
+${selectedBook.description ? `Descrição: ${selectedBook.description}` : ''}
+
+IMPORTANTE:
+- Se você NÃO possui conhecimento suficiente sobre este livro específico, responda EXATAMENTE: "CONHECIMENTO_INSUFICIENTE"
+- Caso contrário, crie um resumo narrativo completo e fiel (~10.000 caracteres)
+- Mantenha o estilo e voz do autor original
+- Não faça introduções como "Este livro...". Vá direto à narrativa.
+- Português Brasileiro
+
+Gere o resumo narrativo agora:`
+          
+          const aiResponse = await callAI(prompt)
+          
+          // Verifica se a IA informou falta de conhecimento
+          if (aiResponse.trim() === 'CONHECIMENTO_INSUFICIENTE' || aiResponse.includes('CONHECIMENTO_INSUFICIENTE')) {
+            throw new Error('Não possuo conhecimento suficiente sobre este livro para gerar um resumo narrativo fiel. Por favor, tente outro livro ou use a versão admin com upload de arquivo.')
+          }
+          
+          finalSummary = aiResponse
         }
 
       } else {
@@ -600,6 +624,12 @@ Gere a análise agora:`
       }
 
       if (finalSummary) {
+        // Limpar caracteres de separação markdown que possam ter sido incluídos
+        finalSummary = finalSummary
+          .replace(/^#+\s*$/gm, '') // Remove linhas que só contêm # (heading vazios)
+          .replace(/\n{3,}/g, '\n\n') // Remove excesso de quebras de linha
+          .trim()
+        
         setSummary(finalSummary)
         setView('summary')
         showToast('Conteúdo gerado com sucesso!', 'success')
@@ -783,6 +813,7 @@ Gere a análise agora:`
               loading={isSearching}
               source={searchSource}
               onSourceChange={setSearchSource}
+              showSourceSelector={isAdminMode}
             />
 
             {books.length > 0 && (
@@ -805,6 +836,8 @@ Gere a análise agora:`
             loading={loading}
             model={summaryModel}
             onModelChange={setSummaryModel}
+            showModelSelector={isAdminMode}
+            showFileUpload={isAdminMode}
           />
         )}
 

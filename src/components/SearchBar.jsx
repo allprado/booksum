@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './SearchBar.css'
 
-function SearchBar({ onSearch, loading, source, onSourceChange }) {
+function SearchBar({ onSearch, loading, source, onSourceChange, showSourceSelector = true }) {
     const [query, setQuery] = useState('')
 
     const handleSubmit = (e) => {
@@ -19,29 +19,31 @@ function SearchBar({ onSearch, loading, source, onSourceChange }) {
 
     return (
         <div className="search-container glass-panel">
-            <div className="source-selector">
-                <label className="source-label">Fonte de Busca</label>
-                <div className="source-options">
-                    {sources.map((s) => (
-                        <label key={s.id} className="source-option">
-                            <input
-                                type="radio"
-                                name="search-source"
-                                value={s.id}
-                                checked={source === s.id}
-                                onChange={(e) => onSourceChange(e.target.value)}
-                                className="source-radio"
-                            />
-                            <div className="source-card">
-                                <span className="material-symbols-rounded source-icon">{s.icon}</span>
-                                <span className="source-text">
-                                    {s.label}<br />{s.sublabel}
-                                </span>
-                            </div>
-                        </label>
-                    ))}
+            {showSourceSelector && (
+                <div className="source-selector">
+                    <label className="source-label">Fonte de Busca</label>
+                    <div className="source-options">
+                        {sources.map((s) => (
+                            <label key={s.id} className="source-option">
+                                <input
+                                    type="radio"
+                                    name="search-source"
+                                    value={s.id}
+                                    checked={source === s.id}
+                                    onChange={(e) => onSourceChange(e.target.value)}
+                                    className="source-radio"
+                                />
+                                <div className="source-card">
+                                    <span className="material-symbols-rounded source-icon">{s.icon}</span>
+                                    <span className="source-text">
+                                        {s.label}<br />{s.sublabel}
+                                    </span>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             <form className="search-form" onSubmit={handleSubmit}>
                 <div className="search-input-wrapper">
