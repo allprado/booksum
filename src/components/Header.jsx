@@ -4,33 +4,42 @@ function Header({ onBack, onHome, showLogo }) {
     return (
         <header className="header">
             <div className="header-content">
-                {onBack && (
+                {onBack ? (
                     <button
                         className="header-btn back-btn"
                         onClick={onBack}
                         aria-label="Voltar"
                     >
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M19 12H5M12 19l-7-7 7-7" />
-                        </svg>
+                        <span className="material-symbols-rounded">arrow_back</span>
                     </button>
+                ) : (
+                    <div className="logo" onClick={onHome}>
+                        <div className="logo-icon">
+                            <span className="material-symbols-rounded">menu_book</span>
+                        </div>
+                        <h1 className="logo-text">
+                            Cozy<span className="logo-accent">Reader</span>
+                        </h1>
+                    </div>
                 )}
 
-                <div
-                    className={`logo ${showLogo ? 'logo-visible' : ''}`}
-                    onClick={onHome}
-                >
-                    <div className="logo-icon">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <circle cx="12" cy="10" r="3" fill="currentColor" />
-                        </svg>
+                {onBack && (
+                    <div 
+                        className="logo logo-center" 
+                        onClick={onHome}
+                    >
+                        <div className="logo-icon logo-icon-small">
+                            <span className="material-symbols-rounded">menu_book</span>
+                        </div>
+                        <span className="logo-text logo-text-small">
+                            Cozy<span className="logo-accent">Reader</span>
+                        </span>
                     </div>
-                    <span className="logo-text">BookSum</span>
-                </div>
+                )}
 
-                <div className="header-spacer"></div>
+                <button className="header-btn profile-btn" aria-label="Perfil">
+                    <span className="material-symbols-rounded">person</span>
+                </button>
             </div>
         </header>
     )

@@ -4,14 +4,14 @@
 
 .section-title {
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-secondary);
     margin-bottom: var(--space-lg);
 }
 
 .result-count {
-    color: var(--color-primary-light);
-    font-weight: 600;
+    color: var(--color-primary);
+    font-weight: 700;
 }
 
 .book-grid {
@@ -25,7 +25,7 @@
     flex-direction: column;
     background: var(--bg-card);
     border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     overflow: hidden;
     cursor: pointer;
     transition: all var(--transition-normal);
@@ -35,7 +35,7 @@
 .book-card:hover {
     transform: translateY(-4px);
     border-color: var(--color-primary);
-    box-shadow: 0 8px 30px rgba(124, 58, 237, 0.2);
+    box-shadow: 0 8px 30px rgba(224, 107, 44, 0.2);
 }
 
 .book-card:active {

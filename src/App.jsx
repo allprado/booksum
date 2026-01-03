@@ -677,11 +677,11 @@ Gere a análise agora:`
           <div className="home-view animate-fadeIn">
             <div className="hero-section">
               <h1 className="hero-title">
-                <span className="text-gradient">Resumos de Livros</span>
-                <br />em Áudio
+                Resumos de <br />
+                <span className="text-gradient">Livros</span> em Áudio
               </h1>
               <p className="hero-subtitle">
-                Aprenda o essencial de qualquer livro em apenas 20 minutos
+                Aprenda o essencial de qualquer livro em apenas 20 minutos.
               </p>
             </div>
 
@@ -702,8 +702,13 @@ Gere a análise agora:`
 
             {!isSearching && books.length === 0 && (
               <div className="empty-state">
-                <div className="empty-icon">📚</div>
-                <p>Busque por livros em português para começar</p>
+                <div className="empty-icon">
+                  <img 
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIHYXMq-ZFn3wt7M8Lm9yhSUL0NwnifZSCw-gkutKObOVgJ6YhtPo6qHBTzYYYI7i7qAOYT9MeCqKYIr5gIJQAvalEXVmxseoo4vAn8w73SdI9L7M-_I2QXDvmPY2RvHFq_R-mB1fT66olhhPA77Xf0xVp5tKxUpo4El4EibPFAOPsvvdMpxy1-7Ghtf9wpTeQ0upnuzgT8NgDtbffQdqoMcE0Kn1pcXK6RYyCdVdmRYl7ODAK8NdyunNLS6NmnEmDfxTG6QAVgyH_" 
+                    alt="Livro aberto"
+                  />
+                </div>
+                <p>Busque por livros em português para começar a sua jornada</p>
               </div>
             )}
           </div>
