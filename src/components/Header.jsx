@@ -18,7 +18,7 @@ function Header({ onBack, onHome, showLogo }) {
                             <span className="material-symbols-rounded">menu_book</span>
                         </div>
                         <h1 className="logo-text">
-                            Cozy<span className="logo-accent">Reader</span>
+                            Resume<span className="logo-accent">Aí</span>
                         </h1>
                     </div>
                 )}
@@ -32,7 +32,7 @@ function Header({ onBack, onHome, showLogo }) {
                             <span className="material-symbols-rounded">menu_book</span>
                         </div>
                         <span className="logo-text logo-text-small">
-                            Cozy<span className="logo-accent">Reader</span>
+                            Resume<span className="logo-accent">Aí</span>
                         </span>
                     </div>
                 )}
