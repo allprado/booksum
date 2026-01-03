@@ -292,6 +292,7 @@ function App() {
       const downloadUrl = Array.isArray(links) ? links[0] : (links.download_url || (links.urls && links.urls[0]))
       if (!downloadUrl) throw new Error('Nenhum link de download direto disponível para este livro')
 
+      console.log('Download URL obtida:', downloadUrl);
       showToast('Baixando livro do Anna\'s Archive...', 'info')
       
       // Helper para validar se o conteúdo é binário válido
@@ -324,47 +325,75 @@ function App() {
         ? 'http://localhost:3000'
         : window.location.origin;
       
-      // Lista de proxies CORS para tentar
-      const corsProxies = [
-        // Primeiro tenta o próprio proxy serverless
-        url => `${apiBaseUrl}/api/proxy-download?url=${encodeURIComponent(url)}`,
-        // Fallback para proxies públicos
-        url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        url => downloadUrl // Tentativa direta sem proxy
+      // Lista de proxies CORS para tentar com timeout
+      const proxyStrategies = [
+        // 1. Tenta proxy próprio com timeout curto
+        {
+          name: 'Proxy próprio (Vercel)',
+          fn: (url) => `${apiBaseUrl}/api/proxy-download?url=${encodeURIComponent(url)}`,
+          timeout: 15000
+        },
+        // 2. Tenta corsproxy.io
+        {
+          name: 'CORS Proxy (corsproxy.io)',
+          fn: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+          timeout: 20000
+        },
+        // 3. Tenta api.allorigins.win
+        {
+          name: 'All Origins API',
+          fn: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+          timeout: 20000
+        },
+        // 4. Tentativa direta sem proxy (pode falhar por CORS)
+        {
+          name: 'Direto (sem proxy)',
+          fn: (url) => url,
+          timeout: 15000
+        }
       ]
 
       let fileResponse = null
       let blob = null
       let lastError = null
+      let successMethod = null
 
-      // Tenta cada proxy em sequência
-      for (const proxyFn of corsProxies) {
+      // Tenta cada estratégia em sequência
+      for (const strategy of proxyStrategies) {
         try {
-          const proxyUrl = proxyFn(downloadUrl)
-          console.log('Tentando download via:', proxyUrl)
+          const proxyUrl = strategy.fn(downloadUrl)
+          console.log(`[${strategy.name}] Tentando download com timeout de ${strategy.timeout}ms`)
           
-          fileResponse = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/octet-stream, application/pdf, application/epub+zip, */*'
-            }
-          })
+          // Cria um controller com timeout
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), strategy.timeout)
+          
+          try {
+            fileResponse = await fetch(proxyUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/octet-stream, application/pdf, application/epub+zip, */*'
+              },
+              signal: controller.signal
+            })
+          } finally {
+            clearTimeout(timeoutId)
+          }
           
           if (!fileResponse.ok) {
-            // Tenta ler detalhes do erro do proxy
             let errorMsg = `HTTP ${fileResponse.status}`
             try {
               const errorData = await fileResponse.json()
               if (errorData.error || errorData.details) {
-                console.warn(`Erro do proxy: ${errorData.error}`, errorData.details)
+                console.warn(`[${strategy.name}] Erro do proxy:`, errorData.error || errorData.details)
                 errorMsg = errorData.details || errorData.error
               }
             } catch (e) {
               // Não é JSON, ignora
             }
-            console.warn(`Falha com status ${fileResponse.status}: ${errorMsg}`)
+            console.warn(`[${strategy.name}] Falha com status ${fileResponse.status}: ${errorMsg}`)
             lastError = new Error(errorMsg)
+            fileResponse = null
             continue
           }
 
@@ -384,24 +413,31 @@ function App() {
           const isValid = await isValidBookFile(blob, expectedExt)
           
           if (isValid) {
-            console.log('Download bem-sucedido e arquivo validado')
+            console.log(`[${strategy.name}] ✓ Download bem-sucedido (${(blob.size / 1024 / 1024).toFixed(2)} MB)`)
+            successMethod = strategy.name
             break
           } else {
-            console.warn('Arquivo baixado é inválido (possivelmente HTML)')
-            lastError = new Error('Arquivo inválido')
+            console.warn(`[${strategy.name}] Arquivo baixado é inválido (possivelmente HTML)`)
+            lastError = new Error('Arquivo inválido ou vazio')
             blob = null
             fileResponse = null
           }
         } catch (err) {
-          console.warn('Erro ao tentar proxy:', err.message)
-          lastError = err
+          if (err.name === 'AbortError') {
+            console.warn(`[${strategy.name}] Timeout excedido`)
+            lastError = new Error('Timeout na conexão')
+          } else {
+            console.warn(`[${strategy.name}] Erro ao tentar:`, err.message)
+            lastError = err
+          }
           blob = null
           fileResponse = null
         }
       }
 
       if (!blob || !fileResponse) {
-        throw new Error('Não foi possível baixar o arquivo. Todos os métodos falharam. ' + (lastError?.message || ''))
+        const errorDetails = lastError?.message || 'Razão desconhecida'
+        throw new Error(`Não foi possível baixar o arquivo. ${errorDetails}`)
       }
 
       // Validar tamanho mínimo
@@ -420,7 +456,7 @@ function App() {
         ext = 'mobi'
       }
 
-      console.log(`Arquivo baixado com sucesso: ${(blob.size / 1024 / 1024).toFixed(2)} MB, tipo: ${ext}`)
+      console.log(`✓ Download concluído via ${successMethod}: ${(blob.size / 1024 / 1024).toFixed(2)} MB (${ext})`)
       return new File([blob], `book_${md5}.${ext}`, { type: blob.type || 'application/octet-stream' })
     }
 
