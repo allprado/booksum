@@ -4,6 +4,7 @@ import SearchBar from './components/SearchBar'
 import BookList from './components/BookList'
 import BookDetail from './components/BookDetail'
 import SummaryView from './components/SummaryView'
+import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import { extractTextFromFile } from './utils/fileParser'
 import './App.css'
@@ -248,8 +249,10 @@ function App() {
       const params = new URLSearchParams({ md5: md5 });
       const url = `https://annas-archive-api.p.rapidapi.com/download?${params.toString()}`;
 
-      console.log('Fetching Anna\'s download:', url);
-      console.log('Using RapidAPI Key:', rapidKey ? 'Present' : 'Missing');
+      console.log('=== Anna\'s Archive Download ===' );
+      console.log('MD5:', md5);
+      console.log('Download API URL:', url);
+      console.log('RapidAPI Key:', rapidKey ? 'Present' : 'Missing');
 
       const response = await fetch(
         url,
@@ -745,6 +748,8 @@ Gere a análise agora:`
           />
         )}
       </main>
+
+      <BottomNav currentView={view} onNavigate={setView} />
 
       {toast && <Toast message={toast.message} type={toast.type} />}
 
