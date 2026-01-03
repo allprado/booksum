@@ -18,6 +18,9 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [toast, setToast] = useState(null)
+  const [currentQuery, setCurrentQuery] = useState('')
+  const [hasMoreResults, setHasMoreResults] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Configurações de áudio
   const [selectedVoice, setSelectedVoice] = useState('pt-BR-FranciscaNeural')
@@ -40,23 +43,30 @@ function App() {
     setTimeout(() => setToast(null), 4000)
   }, [])
 
-  const handleSearch = useCallback(async (query) => {
+  const handleSearch = useCallback(async (query, pageNum = 1) => {
     if (!query.trim()) return
 
-    setIsSearching(true)
+    const isNewSearch = pageNum === 1
+    if (isNewSearch) {
+      setIsSearching(true)
+    } else {
+      setLoading(true)
+    }
+
     try {
       let formattedBooks = []
+      let hasMore = false
 
       if (searchSource === 'google') {
-        // Monta query com busca tanto por título quanto por autor
+        const startIndex = (pageNum - 1) * 40
         const googleQuery = `${encodeURIComponent(query)}+OR+inauthor:${encodeURIComponent(query)}`
         const response = await fetch(
-          `https://www.googleapis.com/books/v1/volumes?q=${googleQuery}&langRestrict=pt&maxResults=40&printType=books`
+          `https://www.googleapis.com/books/v1/volumes?q=${googleQuery}&langRestrict=pt&maxResults=40&startIndex=${startIndex}&printType=books`
         )
         const data = await response.json()
 
         if (data.items && data.items.length > 0) {
-          formattedBooks = data.items
+          const filtered = data.items
             .filter(item => item.volumeInfo.industryIdentifiers && item.volumeInfo.industryIdentifiers.length > 0 && item.volumeInfo.language?.startsWith('pt'))
             .map(item => ({
               id: item.id,
@@ -74,6 +84,9 @@ function App() {
               isbn: item.volumeInfo.industryIdentifiers.find(id => id.type === 'ISBN_13')?.identifier ||
                 item.volumeInfo.industryIdentifiers.find(id => id.type === 'ISBN_10')?.identifier
             }))
+          formattedBooks = filtered
+          // Google Books indica se há mais resultados pela presença de totalItems
+          hasMore = data.totalItems > startIndex + filtered.length
         }
       } else if (searchSource === 'annas') {
         const rapidKey = import.meta.env.VITE_RAPIDAPI_KEY
@@ -84,7 +97,7 @@ function App() {
         const searchParams = new URLSearchParams({
           q: query,
           cat: 'fiction, nonfiction, comic, magazine, musicalscore, other, unknown',
-          page: '1',
+          page: pageNum.toString(),
           ext: 'pdf, epub, mobi, azw3',
           source: 'libgenLi, libgenRs'
         });
@@ -121,20 +134,21 @@ function App() {
             isbn: 'N/A',
             source: 'annas'
           }))
+          // Anna's Archive retorna resultados completos em cada página
+          hasMore = formattedBooks.length === 20
         }
       } else {
         // Open Library Search
-        // Removemos language=por para trazer mais resultados, filtramos no cliente se possível
+        const offset = (pageNum - 1) * 20
         const response = await fetch(
-          `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20`
+          `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20&offset=${offset}`
         )
         const data = await response.json()
 
         if (data.docs && data.docs.length > 0) {
           formattedBooks = data.docs
-            .slice(0, 20)
             .map(item => ({
-              id: item.key, // formato "/works/OL..."
+              id: item.key,
               title: item.title,
               authors: item.author_name || ['Autor desconhecido'],
               publisher: item.publisher ? item.publisher[0] : 'Editora não informada',
@@ -148,22 +162,40 @@ function App() {
               ratingsCount: item.ratings_count,
               isbn: item.isbn ? item.isbn[0] : 'N/A'
             }))
+          hasMore = data.docs.length === 20 && data.numFound > offset + 20
         }
       }
 
-      if (formattedBooks.length > 0) {
+      if (isNewSearch) {
         setBooks(formattedBooks)
+        setCurrentQuery(query)
+        setCurrentPage(1)
       } else {
-        setBooks([])
+        setBooks(prev => [...prev, ...formattedBooks])
+        setCurrentPage(pageNum)
+      }
+      setHasMoreResults(hasMore)
+
+      if (isNewSearch && formattedBooks.length === 0) {
         showToast('Nenhum livro encontrado', 'warning')
       }
     } catch (error) {
       console.error('Erro na busca:', error)
       showToast('Erro ao buscar livros', 'error')
     } finally {
-      setIsSearching(false)
+      if (isNewSearch) {
+        setIsSearching(false)
+      } else {
+        setLoading(false)
+      }
     }
   }, [searchSource, showToast])
+
+  const handleLoadMore = useCallback(() => {
+    if (currentQuery && !loading) {
+      handleSearch(currentQuery, currentPage + 1)
+    }
+  }, [currentQuery, currentPage, loading, handleSearch])
 
   const handleSelectBook = (book) => {
     setSelectedBook(book)
@@ -744,6 +776,9 @@ Gere a análise agora:`
                 books={books}
                 onSelectBook={handleSelectBook}
                 loading={isSearching}
+                hasMoreResults={hasMoreResults}
+                onLoadMore={handleLoadMore}
+                isLoadingMore={loading && !isSearching}
               />
             )}
           </div>

@@ -1,6 +1,6 @@
 import './BookList.css'
 
-function BookList({ books, onSelectBook, loading }) {
+function BookList({ books, onSelectBook, loading, hasMoreResults, onLoadMore, isLoadingMore }) {
     if (loading) {
         return (
             <div className="book-list">
@@ -74,6 +74,26 @@ function BookList({ books, onSelectBook, loading }) {
                     </div>
                 ))}
             </div>
+
+            {hasMoreResults && (
+                <button 
+                    className="load-more-btn"
+                    onClick={onLoadMore}
+                    disabled={isLoadingMore}
+                >
+                    {isLoadingMore ? (
+                        <>
+                            <span className="btn-spinner-small"></span>
+                            Carregando...
+                        </>
+                    ) : (
+                        <>
+                            <span>Ver mais livros</span>
+                            <span className="material-symbols-rounded">arrow_downward</span>
+                        </>
+                    )}
+                </button>
+            )}
         </div>
     )
 }
