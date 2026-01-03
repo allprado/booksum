@@ -48,8 +48,10 @@ function App() {
       let formattedBooks = []
 
       if (searchSource === 'google') {
+        // Monta query com busca tanto por título quanto por autor
+        const googleQuery = `${encodeURIComponent(query)}+OR+inauthor:${encodeURIComponent(query)}`
         const response = await fetch(
-          `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&langRestrict=pt&maxResults=20&printType=books`
+          `https://www.googleapis.com/books/v1/volumes?q=${googleQuery}&langRestrict=pt&maxResults=40&printType=books`
         )
         const data = await response.json()
 
