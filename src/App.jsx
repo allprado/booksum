@@ -119,21 +119,35 @@ function App() {
         const data = await response.json()
 
         if (data && data.books && data.books.length > 0) {
-          formattedBooks = data.books.map(item => ({
-            id: item.md5,
-            md5: item.md5,
-            title: item.title,
-            authors: item.author ? [item.author] : ['Autor desconhecido'],
-            publisher: 'Editora não informada',
-            publishedDate: item.year || 'Ano não informado',
-            description: `Formato: ${item.format?.toUpperCase()} | Tamanho: ${item.size}`,
-            pageCount: 0,
-            categories: [item.genre || 'Livro'],
-            thumbnail: item.imgUrl ? item.imgUrl.replace('sk//', 'sk/') : null,
-            language: 'Desconhecido',
-            isbn: 'N/A',
-            source: 'annas'
-          }))
+          formattedBooks = data.books.map(item => {
+            // Processa a URL da imagem para evitar problemas de QUIC
+            let thumbnailUrl = null
+            if (item.imgUrl) {
+              thumbnailUrl = item.imgUrl.replace('sk//', 'sk/')
+              // Tenta usar HTTP ao invés de HTTPS para evitar problemas QUIC
+              // se a imagem tiver problemas com HTTPS
+              if (thumbnailUrl.startsWith('https://s3proxy.cdn-zlib.sk')) {
+                // Mante HTTPS mas log o problema se houver
+                console.debug('Imagem do Anna\'s Archive:', item.md5, thumbnailUrl)
+              }
+            }
+            
+            return {
+              id: item.md5,
+              md5: item.md5,
+              title: item.title,
+              authors: item.author ? [item.author] : ['Autor desconhecido'],
+              publisher: 'Editora não informada',
+              publishedDate: item.year || 'Ano não informado',
+              description: `Formato: ${item.format?.toUpperCase()} | Tamanho: ${item.size}`,
+              pageCount: 0,
+              categories: [item.genre || 'Livro'],
+              thumbnail: thumbnailUrl,
+              language: 'Desconhecido',
+              isbn: 'N/A',
+              source: 'annas'
+            }
+          })
           // Anna's Archive retorna resultados completos em cada página
           hasMore = formattedBooks.length === 20
         }

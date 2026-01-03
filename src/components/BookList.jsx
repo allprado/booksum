@@ -1,6 +1,14 @@
+import { useState } from 'react'
 import './BookList.css'
 
 function BookList({ books, onSelectBook, loading, hasMoreResults, onLoadMore, isLoadingMore }) {
+    const [failedImages, setFailedImages] = useState(new Set())
+
+    const handleImageError = (bookId) => {
+        setFailedImages(prev => new Set([...prev, bookId]))
+        console.warn(`Erro ao carregar imagem do livro: ${bookId}`)
+    }
+
     if (loading) {
         return (
             <div className="book-list">
@@ -35,12 +43,13 @@ function BookList({ books, onSelectBook, loading, hasMoreResults, onLoadMore, is
                         style={{ animationDelay: `${index * 0.05}s` }}
                     >
                         <div className="book-cover-wrapper">
-                            {book.thumbnail ? (
+                            {book.thumbnail && !failedImages.has(book.id) ? (
                                 <img
                                     src={book.thumbnail}
                                     alt={book.title}
                                     className="book-cover"
                                     loading="lazy"
+                                    onError={() => handleImageError(book.id)}
                                 />
                             ) : (
                                 <div className="book-cover-placeholder">
