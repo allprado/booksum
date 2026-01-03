@@ -99,9 +99,7 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange }) 
             <div className="generate-section">
                 <div className="generate-info">
                     <div className="generate-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                        </svg>
+                        <span className="material-symbols-rounded">auto_awesome</span>
                     </div>
                     <div className="generate-text">
                         <h4>Gerar Resumo com IA</h4>
