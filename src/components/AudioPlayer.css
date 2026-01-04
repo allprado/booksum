@@ -5,7 +5,9 @@
     padding: var(--space-lg);
     animation: scaleIn 0.3s ease;
     width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 .player-header {
@@ -14,6 +16,8 @@
     gap: var(--space-md);
     margin-bottom: var(--space-lg);
     position: relative;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .player-cover {
@@ -166,6 +170,8 @@
     padding: var(--space-md);
     background: var(--glass-bg);
     border-radius: var(--radius-lg);
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .visualizer-bars {
@@ -355,6 +361,8 @@
     align-items: center;
     justify-content: center;
     gap: var(--space-md);
+    flex-wrap: wrap;
+    max-width: 100%;
 }
 
 .control-btn {

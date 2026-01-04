@@ -573,7 +573,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                     <button
                                         className="mini-ctrl-btn"
                                         onClick={goToNextAudioChapter}
-                                        disabled={currentChapter === audioChapters.length - 1 || isGeneratingAudio}
+                                        disabled={isGeneratingAudio}
                                         title="Próximo capítulo"
                                     >
                                         ⏭

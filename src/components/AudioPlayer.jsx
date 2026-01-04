@@ -350,7 +350,7 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
                     <button
                         className="control-btn chapter-btn"
                         onClick={goToNextChapter}
-                        disabled={currentChapterIndex === audioChapters.length - 1 || isGeneratingAudio}
+                        disabled={isGeneratingAudio}
                         title="Próximo capítulo"
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

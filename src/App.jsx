@@ -549,7 +549,7 @@ Gere o resumo final em português brasileiro:`
         const ssml = `
           <speak version='1.0' xml:lang='pt-BR'>
             <voice xml:lang='pt-BR' xml:gender='${voiceConfig.gender}' name='${selectedVoice}'>
-              <prosody rate='${selectedVoice}'>
+              <prosody rate='${speechRate}'>
                 ${chunkText}
               </prosody>
             </voice>
