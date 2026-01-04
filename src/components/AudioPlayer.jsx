@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import './AudioPlayer.css'
 
-function AudioPlayer({ audioUrl, book }) {
+function AudioPlayer({ audioUrl, audioChapters = [], book }) {
     const audioRef = useRef(null)
     const progressRef = useRef(null)
 
@@ -11,6 +11,13 @@ function AudioPlayer({ audioUrl, book }) {
     const [playbackRate, setPlaybackRate] = useState(1)
     const [volume, setVolume] = useState(1)
     const [showVolumeSlider, setShowVolumeSlider] = useState(false)
+    const [currentChapterIndex, setCurrentChapterIndex] = useState(0)
+    const [showChapterIndex, setShowChapterIndex] = useState(false)
+
+    // Se temos audioChapters, usar o primeiro; caso contrário usar audioUrl
+    const hasChapters = audioChapters && audioChapters.length > 0
+    const currentAudioUrl = hasChapters ? audioChapters[currentChapterIndex]?.audioUrl : audioUrl
+    const currentChapter = hasChapters ? audioChapters[currentChapterIndex] : null
 
     useEffect(() => {
         const audio = audioRef.current
@@ -18,7 +25,14 @@ function AudioPlayer({ audioUrl, book }) {
 
         const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
         const handleLoadedMetadata = () => setDuration(audio.duration)
-        const handleEnded = () => setIsPlaying(false)
+        const handleEnded = () => {
+            // Quando um capítulo termina, avança automaticamente para o próximo
+            if (hasChapters && currentChapterIndex < audioChapters.length - 1) {
+                goToChapter(currentChapterIndex + 1)
+            } else {
+                setIsPlaying(false)
+            }
+        }
 
         audio.addEventListener('timeupdate', handleTimeUpdate)
         audio.addEventListener('loadedmetadata', handleLoadedMetadata)
@@ -29,7 +43,27 @@ function AudioPlayer({ audioUrl, book }) {
             audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
             audio.removeEventListener('ended', handleEnded)
         }
-    }, [])
+    }, [hasChapters, currentChapterIndex, audioChapters.length])
+
+    const goToChapter = (index) => {
+        if (index >= 0 && index < audioChapters.length) {
+            setCurrentChapterIndex(index)
+            setCurrentTime(0)
+            setIsPlaying(true)
+        }
+    }
+
+    const goToPreviousChapter = () => {
+        if (currentChapterIndex > 0) {
+            goToChapter(currentChapterIndex - 1)
+        }
+    }
+
+    const goToNextChapter = () => {
+        if (currentChapterIndex < audioChapters.length - 1) {
+            goToChapter(currentChapterIndex + 1)
+        }
+    }
 
     const togglePlay = () => {
         const audio = audioRef.current
@@ -89,7 +123,7 @@ function AudioPlayer({ audioUrl, book }) {
 
     return (
         <div className="audio-player">
-            <audio ref={audioRef} src={audioUrl} preload="metadata" />
+            <audio ref={audioRef} src={currentAudioUrl} preload="metadata" />
 
             <div className="player-header">
                 {book.thumbnail && (
@@ -101,9 +135,54 @@ function AudioPlayer({ audioUrl, book }) {
                 )}
                 <div className="player-info">
                     <h3 className="player-title">{book.title}</h3>
+                    {hasChapters && currentChapter && (
+                        <p className="player-chapter">
+                            {currentChapter.number} de {audioChapters.length}: {currentChapter.title}
+                        </p>
+                    )}
                     <p className="player-author">{book.authors?.join(', ')}</p>
                 </div>
+                {hasChapters && (
+                    <button
+                        className="chapters-toggle-btn"
+                        onClick={() => setShowChapterIndex(!showChapterIndex)}
+                        title="Lista de capítulos"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="8" y1="6" x2="21" y2="6" />
+                            <line x1="8" y1="12" x2="21" y2="12" />
+                            <line x1="8" y1="18" x2="21" y2="18" />
+                            <line x1="3" y1="6" x2="3.01" y2="6" />
+                            <line x1="3" y1="12" x2="3.01" y2="12" />
+                            <line x1="3" y1="18" x2="3.01" y2="18" />
+                        </svg>
+                    </button>
+                )}
             </div>
+
+            {showChapterIndex && hasChapters && (
+                <div className="chapters-modal-overlay" onClick={() => setShowChapterIndex(false)}>
+                    <div className="chapters-modal" onClick={(e) => e.stopPropagation()}>
+                        <h3>Capítulos</h3>
+                        <div className="chapters-list">
+                            {audioChapters.map((chapter, index) => (
+                                <button
+                                    key={index}
+                                    className={`chapter-item ${index === currentChapterIndex ? 'active' : ''}`}
+                                    onClick={() => {
+                                        goToChapter(index)
+                                        setShowChapterIndex(false)
+                                    }}
+                                >
+                                    <span className="chapter-num">{chapter.number}</span>
+                                    <span className="chapter-name">{chapter.title}</span>
+                                    {index === currentChapterIndex && <span className="play-indicator">▶</span>}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="player-visualizer">
                 <div className={`visualizer-bars ${isPlaying ? 'playing' : ''}`}>
@@ -151,6 +230,19 @@ function AudioPlayer({ audioUrl, book }) {
                     <span className="speed-label">{playbackRate}x</span>
                 </button>
 
+                {hasChapters && (
+                    <button
+                        className="control-btn chapter-btn"
+                        onClick={goToPreviousChapter}
+                        disabled={currentChapterIndex === 0}
+                        title="Capítulo anterior"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                    </button>
+                )}
+
                 <button
                     className="control-btn seek-btn"
                     onClick={() => handleSeek(-15)}
@@ -190,6 +282,19 @@ function AudioPlayer({ audioUrl, book }) {
                     </svg>
                     <span className="seek-label">15</span>
                 </button>
+
+                {hasChapters && (
+                    <button
+                        className="control-btn chapter-btn"
+                        onClick={goToNextChapter}
+                        disabled={currentChapterIndex === audioChapters.length - 1}
+                        title="Próximo capítulo"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                    </button>
+                )}                </button>
 
                 <div className="volume-container">
                     <button

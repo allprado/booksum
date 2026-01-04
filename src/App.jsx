@@ -15,6 +15,7 @@ function App({ isAdminMode = false }) {
   const [summary, setSummary] = useState(null)
   const [audioUrl, setAudioUrl] = useState(null)
   const [audioChapters, setAudioChapters] = useState([]) // Array de {title, audioUrl, startPos, endPos}
+  const [pendingChapters, setPendingChapters] = useState([]) // Capítulos aguardando geração de áudio
   const [loading, setLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [toast, setToast] = useState(null)
@@ -501,32 +502,31 @@ Gere o resumo final em português brasileiro:`
       const accessToken = await tokenResponse.text()
 
       // 2. Extrair capítulos do resumo
-      const chapterRegex = /\*?\*?Capítulo\s+(\d+)\s+de\s+(\d+)\*?\*?[:\-\s]*(.*?)(?=\n|$)/gi
+      const chapterRegex = /\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi
       const matches = [...summary.matchAll(chapterRegex)]
       
       let chaptersToGenerate = []
       
       if (matches.length > 0) {
-        // Tem capítulos definidos - gera áudio para cada um
-        showToast(`Encontrados ${matches.length} capítulos. Gerando áudio...`, 'info')
+        // Tem capítulos definidos - gera áudio APENAS para o PRIMEIRO capítulo
+        showToast(`${matches.length} capítulos detectados. Gerando áudio do primeiro capítulo...`, 'info')
         
-        for (let i = 0; i < matches.length; i++) {
-          const match = matches[i]
-          const chapterNum = parseInt(match[1])
-          const chapterTitle = match[3]?.trim() || `Capítulo ${chapterNum}`
-          const startPos = match.index
-          const endPos = i < matches.length - 1 ? matches[i + 1].index : summary.length
-          
-          const chapterContent = summary.substring(startPos, endPos)
-          
-          chaptersToGenerate.push({
-            number: chapterNum,
-            title: chapterTitle,
-            content: chapterContent,
-            startPos,
-            endPos
-          })
-        }
+        // Pega apenas o primeiro capítulo
+        const match = matches[0]
+        const chapterNum = parseInt(match[1])
+        const chapterTitle = match[3]?.trim().replace(/\*+/g, '') || `Capítulo ${chapterNum}`
+        const startPos = match.index
+        const endPos = matches.length > 1 ? matches[1].index : summary.length
+        
+        const chapterContent = summary.substring(startPos, endPos)
+        
+        chaptersToGenerate.push({
+          number: chapterNum,
+          title: chapterTitle,
+          content: chapterContent,
+          startPos,
+          endPos
+        })
       } else {
         // Não tem capítulos - gera um único áudio completo
         showToast('Nenhum capítulo detectado. Gerando áudio completo...', 'info')
@@ -634,6 +634,29 @@ Gere o resumo final em português brasileiro:`
 
       // Salvar os capítulos com áudio
       setAudioChapters(generatedChapters)
+      
+      // Se temos mais capítulos que não foram gerados, guardar como pendentes
+      if (matches.length > 1) {
+        const pendingChaptersData = matches.slice(1).map((match, idx) => {
+          const chapterNum = parseInt(match[1])
+          const chapterTitle = match[3]?.trim().replace(/\*+/g, '') || `Capítulo ${chapterNum}`
+          const startPos = match.index
+          const endPos = idx < matches.length - 2 ? matches[idx + 2].index : summary.length
+          const chapterContent = summary.substring(startPos, endPos)
+          
+          return {
+            number: chapterNum,
+            title: chapterTitle,
+            content: chapterContent,
+            startPos,
+            endPos,
+            generated: false
+          }
+        })
+        setPendingChapters(pendingChaptersData)
+      } else {
+        setPendingChapters([])
+      }
       
       // Também salva o primeiro capítulo como audioUrl principal para retrocompatibilidade
       if (generatedChapters.length > 0) {

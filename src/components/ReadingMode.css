@@ -7,8 +7,10 @@
     animation: fadeIn 0.3s ease;
 }
 
-/* Theme Variations */
-.theme-dark {
+/* Theme Variations - Define variables first */
+.reading-mode.theme-dark {
+    background: #0f0f23;
+    color: #e2e8f0;
     --reading-bg: #0f0f23;
     --reading-text: #e2e8f0;
     --reading-heading: #f8fafc;
@@ -17,7 +19,9 @@
     --reading-surface: rgba(26, 26, 46, 0.95);
 }
 
-.theme-light {
+.reading-mode.theme-light {
+    background: #fafafa;
+    color: #1f2937;
     --reading-bg: #fafafa;
     --reading-text: #1f2937;
     --reading-heading: #111827;
@@ -26,18 +30,15 @@
     --reading-surface: rgba(255, 255, 255, 0.95);
 }
 
-.theme-sepia {
+.reading-mode.theme-sepia {
+    background: #f5ebe0;
+    color: #44403c;
     --reading-bg: #f5ebe0;
     --reading-text: #44403c;
     --reading-heading: #292524;
     --reading-muted: #78716c;
     --reading-highlight: #92400e;
     --reading-surface: rgba(250, 240, 230, 0.95);
-}
-
-.reading-mode {
-    background: var(--reading-bg);
-    color: var(--reading-text);
 }
 
 /* Progress Bar */

@@ -118,7 +118,7 @@ function SummaryView({
             {activeTab === 'audio' && (
                 <div className="audio-content">
                     {audioUrl ? (
-                        <AudioPlayer audioUrl={audioUrl} book={book} />
+                        <AudioPlayer audioUrl={audioUrl} audioChapters={audioChapters} book={book} />
                     ) : (
                         <div className="audio-generate">
                             <div className="audio-icon">

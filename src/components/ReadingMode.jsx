@@ -28,7 +28,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [] }) {
             }
             
             // Procura por padrões de capítulos: "**Capítulo X de Y**" ou "Capítulo X de Y"
-            const chapterRegex = /\*?\*?Capítulo\s+(\d+)\s+de\s+(\d+)\*?\*?[:\-\s]*(.*?)(?=\n|$)/gi
+            const chapterRegex = /\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi
             const matches = [...summary.matchAll(chapterRegex)]
             
             if (matches.length > 0) {
@@ -36,7 +36,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [] }) {
                     id: `chapter-${index}`,
                     number: parseInt(match[1]),
                     total: parseInt(match[2]),
-                    title: match[3].trim() || `Capítulo ${match[1]}`,
+                    title: match[3].trim().replace(/\*+/g, '') || `Capítulo ${match[1]}`,
                     position: match.index,
                     audioUrl: null
                 }))
@@ -194,10 +194,11 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [] }) {
     const formatText = (text) => {
         // Adiciona IDs aos capítulos para navegação
         let formattedText = text
-            .replace(/\*?\*?Capítulo\s+(\d+)\s+de\s+(\d+)\*?\*?[:\-\s]*(.*?)(?=\n|$)/gi, (match, num, total, title, offset) => {
+            .replace(/\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi, (match, num, total, title, offset) => {
                 const index = chapters.findIndex(ch => ch.position === offset)
                 const id = index >= 0 ? chapters[index].id : `chapter-${num}`
-                return `<h2 id="${id}" class="reading-h2">Capítulo ${num} de ${total}${title ? ': ' + title : ''}</h2>`
+                const cleanTitle = title ? title.replace(/\*+/g, '') : ''
+                return `<h2 id="${id}" class="reading-h2">Capítulo ${num} de ${total}${cleanTitle ? ': ' + cleanTitle : ''}</h2>`
             })
             .replace(/\*\*([^*]+)\*\*/g, (match, content, offset) => {
                 // Para outros títulos em negrito que não sejam capítulos

@@ -4,6 +4,8 @@
     border-radius: var(--radius-xl);
     padding: var(--space-lg);
     animation: scaleIn 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .player-header {
@@ -11,6 +13,7 @@
     align-items: center;
     gap: var(--space-md);
     margin-bottom: var(--space-lg);
+    position: relative;
 }
 
 .player-cover {
@@ -35,12 +38,122 @@
     text-overflow: ellipsis;
 }
 
+.player-chapter {
+    font-size: 0.75rem;
+    color: var(--color-primary-light);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .player-author {
     font-size: 0.875rem;
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.chapters-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.chapters-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Chapters Modal */
+.chapters-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: flex-end;
+    z-index: 1000;
+}
+
+.chapters-modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--glass-border);
+    border-bottom: none;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: var(--space-lg);
+    width: 100%;
+    max-height: 70vh;
+    overflow-y: auto;
+    animation: slideUpFrom0 0.3s ease;
+    box-sizing: border-box;
+}
+
+.chapters-modal h3 {
+    color: var(--text-primary);
+    margin-bottom: var(--space-md);
+    font-size: 1.125rem;
+}
+
+.chapters-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.chapter-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+}
+
+.chapter-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--color-primary);
+}
+
+.chapter-item.active {
+    background: rgba(167, 139, 250, 0.1);
+    border-color: var(--color-primary);
+    color: var(--color-primary-light);
+}
+
+.chapter-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.chapter-name {
+    flex: 1;
+    font-size: 0.95rem;
+}
+
+.play-indicator {
+    color: var(--color-primary-light);
+    font-size: 0.8rem;
 }
 
 /* Visualizer */
@@ -259,10 +372,19 @@
     position: relative;
 }
 
-.control-btn:hover {
+.control-btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
     border-color: var(--color-primary-light);
+}
+
+.control-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.chapter-btn {
+    font-size: 0.75rem;
 }
 
 .seek-btn {
