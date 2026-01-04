@@ -6,7 +6,6 @@ import BookDetail from './components/BookDetail'
 import SummaryView from './components/SummaryView'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
-import { extractTextFromFile } from './utils/fileParser'
 import './App.css'
 
 function App({ isAdminMode = false }) {
@@ -15,6 +14,7 @@ function App({ isAdminMode = false }) {
   const [selectedBook, setSelectedBook] = useState(null)
   const [summary, setSummary] = useState(null)
   const [audioUrl, setAudioUrl] = useState(null)
+  const [audioChapters, setAudioChapters] = useState([]) // Array de {title, audioUrl, startPos, endPos}
   const [loading, setLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [toast, setToast] = useState(null)
@@ -221,7 +221,7 @@ function App({ isAdminMode = false }) {
     setView('detail')
   }
 
-  const handleGenerateSummary = async (mode = 'analysis', file = null) => {
+  const handleGenerateSummary = async () => {
     if (!selectedBook) return
 
     setLoading(true)
@@ -295,449 +295,60 @@ function App({ isAdminMode = false }) {
       }
     }
 
-    // Helper para obter arquivo do Anna's Archive
-    const fetchAnnasFile = async (md5) => {
-      const rapidKey = import.meta.env.VITE_RAPIDAPI_KEY
-      if (!rapidKey) throw new Error('RapidAPI Key não encontrada no .env')
-
-      const params = new URLSearchParams({ md5: md5 });
-      const url = `https://annas-archive-api.p.rapidapi.com/download?${params.toString()}`;
-
-      console.log('=== Anna\'s Archive Download ===' );
-      console.log('MD5:', md5);
-      console.log('Download API URL:', url);
-      console.log('RapidAPI Key:', rapidKey ? 'Present' : 'Missing');
-
-      const response = await fetch(
-        url,
-        {
-          headers: {
-            'x-rapidapi-key': rapidKey,
-            'x-rapidapi-host': 'annas-archive-api.p.rapidapi.com'
-          }
-        }
-      )
-
-      if (!response.ok) {
-        let errorMsg = `Erro ${response.status} ao obter links`
-        try {
-          const errData = await response.json()
-          errorMsg += `: ${JSON.stringify(errData)}`
-        } catch (e) {
-          const errText = await response.text().catch(() => '')
-          if (errText) errorMsg += `: ${errText}`
-        }
-        
-        // Mensagem mais clara para erro 404
-        if (response.status === 404) {
-          throw new Error('Este livro não possui download disponível no Anna\'s Archive. Por favor, faça o upload manual do arquivo PDF ou EPUB.')
-        }
-        
-        throw new Error(errorMsg)
-      }
-
-      let links
-      try {
-        links = await response.json()
-      } catch (e) {
-        throw new Error('A API retornou um formato inesperado ao buscar links de download.')
-      }
-
-      const downloadUrl = Array.isArray(links) ? links[0] : (links.download_url || (links.urls && links.urls[0]))
-      if (!downloadUrl) throw new Error('Nenhum link de download direto disponível para este livro')
-
-      console.log('Download URL obtida:', downloadUrl);
-      showToast('Baixando livro do Anna\'s Archive...', 'info')
-      
-      // Helper para validar se o conteúdo é binário válido
-      const isValidBookFile = async (blob, expectedExt) => {
-        // Verifica tamanho mínimo (10KB)
-        if (blob.size < 10000) return false
-        
-        // Lê os primeiros bytes para verificar assinatura do arquivo
-        const buffer = await blob.slice(0, 100).arrayBuffer()
-        const bytes = new Uint8Array(buffer)
-        
-        // Verifica assinatura de PDF
-        if (expectedExt === 'pdf') {
-          const pdfSignature = '%PDF'
-          const signature = String.fromCharCode(...bytes.slice(0, 4))
-          return signature === pdfSignature
-        }
-        
-        // Verifica assinatura de EPUB (é um arquivo ZIP)
-        if (expectedExt === 'epub') {
-          // ZIP signature: PK (0x50 0x4B)
-          return bytes[0] === 0x50 && bytes[1] === 0x4B
-        }
-        
-        return true // Para outros formatos, aceita
-      }
-      
-      // Determina a URL base da API (produção ou desenvolvimento)
-      const apiBaseUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3000'
-        : window.location.origin;
-      
-      // Lista de proxies CORS para tentar com timeout
-      const proxyStrategies = [
-        // 1. Tenta proxy próprio com timeout curto
-        {
-          name: 'Proxy próprio (Vercel)',
-          fn: (url) => `${apiBaseUrl}/api/proxy-download?url=${encodeURIComponent(url)}`,
-          timeout: 15000
-        },
-        // 2. Tenta corsproxy.io
-        {
-          name: 'CORS Proxy (corsproxy.io)',
-          fn: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-          timeout: 20000
-        },
-        // 3. Tenta api.allorigins.win
-        {
-          name: 'All Origins API',
-          fn: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-          timeout: 20000
-        },
-        // 4. Tentativa direta sem proxy (pode falhar por CORS)
-        {
-          name: 'Direto (sem proxy)',
-          fn: (url) => url,
-          timeout: 15000
-        }
-      ]
-
-      let fileResponse = null
-      let blob = null
-      let lastError = null
-      let successMethod = null
-
-      // Tenta cada estratégia em sequência
-      for (const strategy of proxyStrategies) {
-        try {
-          const proxyUrl = strategy.fn(downloadUrl)
-          console.log(`[${strategy.name}] Tentando download com timeout de ${strategy.timeout}ms`)
-          
-          // Cria um controller com timeout
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), strategy.timeout)
-          
-          try {
-            fileResponse = await fetch(proxyUrl, {
-              method: 'GET',
-              headers: {
-                'Accept': 'application/octet-stream, application/pdf, application/epub+zip, */*'
-              },
-              signal: controller.signal
-            })
-          } finally {
-            clearTimeout(timeoutId)
-          }
-          
-          if (!fileResponse.ok) {
-            let errorMsg = `HTTP ${fileResponse.status}`
-            try {
-              const errorData = await fileResponse.json()
-              if (errorData.error || errorData.details) {
-                console.warn(`[${strategy.name}] Erro do proxy:`, errorData.error || errorData.details)
-                errorMsg = errorData.details || errorData.error
-              }
-            } catch (e) {
-              // Não é JSON, ignora
-            }
-            console.warn(`[${strategy.name}] Falha com status ${fileResponse.status}: ${errorMsg}`)
-            lastError = new Error(errorMsg)
-            fileResponse = null
-            continue
-          }
-
-          // Tenta obter o blob
-          blob = await fileResponse.blob()
-          
-          // Detectar extensão esperada
-          let expectedExt = 'epub'
-          const contentType = fileResponse.headers.get('content-type')
-          if (contentType?.includes('pdf') || downloadUrl.toLowerCase().endsWith('.pdf')) {
-            expectedExt = 'pdf'
-          } else if (contentType?.includes('epub') || downloadUrl.toLowerCase().endsWith('.epub')) {
-            expectedExt = 'epub'
-          }
-          
-          // Valida se é um arquivo válido
-          const isValid = await isValidBookFile(blob, expectedExt)
-          
-          if (isValid) {
-            console.log(`[${strategy.name}] ✓ Download bem-sucedido (${(blob.size / 1024 / 1024).toFixed(2)} MB)`)
-            successMethod = strategy.name
-            break
-          } else {
-            console.warn(`[${strategy.name}] Arquivo baixado é inválido (possivelmente HTML)`)
-            lastError = new Error('Arquivo inválido ou vazio')
-            blob = null
-            fileResponse = null
-          }
-        } catch (err) {
-          if (err.name === 'AbortError') {
-            console.warn(`[${strategy.name}] Timeout excedido`)
-            lastError = new Error('Timeout na conexão')
-          } else {
-            console.warn(`[${strategy.name}] Erro ao tentar:`, err.message)
-            lastError = err
-          }
-          blob = null
-          fileResponse = null
-        }
-      }
-
-      if (!blob || !fileResponse) {
-        const errorDetails = lastError?.message || 'Razão desconhecida'
-        throw new Error(`Não foi possível baixar o arquivo. ${errorDetails}`)
-      }
-
-      // Validar tamanho mínimo
-      if (blob.size === 0) {
-        throw new Error('O arquivo baixado está vazio')
-      }
-
-      // Detectar extensão baseada no content-type ou URL
-      let ext = 'epub'
-      const contentType = fileResponse.headers.get('content-type')
-      if (contentType?.includes('pdf') || downloadUrl.toLowerCase().endsWith('.pdf')) {
-        ext = 'pdf'
-      } else if (contentType?.includes('epub') || downloadUrl.toLowerCase().endsWith('.epub')) {
-        ext = 'epub'
-      } else if (downloadUrl.toLowerCase().endsWith('.mobi')) {
-        ext = 'mobi'
-      }
-
-      console.log(`✓ Download concluído via ${successMethod}: ${(blob.size / 1024 / 1024).toFixed(2)} MB (${ext})`)
-      return new File([blob], `book_${md5}.${ext}`, { type: blob.type || 'application/octet-stream' })
-    }
-
     try {
-      let finalSummary = ''
+      // Primeiro, verifica se a IA possui conhecimento real sobre o livro
+      showToast('Verificando conhecimento sobre o livro...', 'info')
+      
+      const verificationPrompt = `Você tem conhecimento real e detalhado sobre o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}?
 
-      if (mode === 'summary') {
-        let bookFile = file
+IMPORTANTE: Responda APENAS "SIM" se você realmente conhece o conteúdo completo deste livro específico (não confunda com outros livros do mesmo autor ou títulos similares). Responda "NÃO" se você não tem certeza ou se não conhece o livro em detalhes.
 
-        // No modo admin, tenta baixar do Anna's Archive se necessário
-        if (isAdminMode && !bookFile && selectedBook.md5) {
-          try {
-            showToast('Tentando baixar o livro automaticamente...', 'info')
-            bookFile = await fetchAnnasFile(selectedBook.md5)
-            showToast('Livro baixado com sucesso!', 'success')
-          } catch (err) {
-            console.error('Erro no download automático:', err)
-            showToast('Não foi possível baixar automaticamente. Por favor, faça o upload manual do arquivo.', 'warning')
-            throw new Error('Download automático falhou. Por favor, faça o upload manual do arquivo PDF ou EPUB para continuar.')
-          }
-        }
+Sua resposta (SIM ou NÃO):`
 
-        // No modo admin, exige arquivo
-        if (isAdminMode && !bookFile) {
-          throw new Error('Para gerar o resumo narrativo fiel, por favor faça o upload do arquivo PDF ou EPUB do livro.')
-        }
+      const verification = await callAI(verificationPrompt)
+      const hasKnowledge = verification.trim().toUpperCase().includes('SIM')
+      
+      if (!hasKnowledge) {
+        throw new Error(`Não possuo conhecimento detalhado suficiente sobre o livro "${selectedBook.title}" para criar um resumo confiável. Isso significa que eu poderia inventar ou criar informações incorretas sobre o livro.
 
-        if (bookFile) {
-          showToast('Lendo arquivo do livro...', 'info')
-          let bookContent = ''
-          try {
-            bookContent = await extractTextFromFile(bookFile)
-          } catch (err) {
-            console.error(err)
-            throw new Error('Erro ao extrair texto do arquivo: ' + err.message)
-          }
-
-          // Dividir em chunks para garantir detalhes
-          const CHUNK_SIZE = 50000 // Caracteres por chunk
-          const chunks = []
-          for (let i = 0; i < bookContent.length; i += CHUNK_SIZE) {
-            chunks.push(bookContent.slice(i, i + CHUNK_SIZE))
-          }
-
-          showToast(`Processando ${chunks.length} partes do livro...`, 'info')
-
-          const chunkPromises = chunks.map(async (chunk, index) => {
-            const isLast = index === chunks.length - 1
-            const chunkPrompt = `Você é o próprio autor do livro "${selectedBook.title}".
-Estamos reescrevendo o livro em formato condensado.
-Esta é a PARTE ${index + 1} de ${chunks.length}.
-
-Tua tarefa:
-Resuma esta parte narrativamente, mantendo o estilo, a voz e os detalhes importantes da trama/conteúdo.
-A saída deve ter entre 1500 e 2500 caracteres tentando manter a proporção da obra original.
-Não faça introduções do tipo "Nesta parte...". Apenas continue a história/texto.
-
-CONTEÚDO DA PARTE:
-${chunk}
-
-Seja fluido. Escreva agora:`
-
-            // Pequeno delay para evitar rate limit agressivo se forem muitos chunks
-            await new Promise(r => setTimeout(r, index * 1000))
-            return await callAI(chunkPrompt)
-          })
-
-          const results = await Promise.all(chunkPromises)
-          finalSummary = results.join('\n\n')
-
-        } else {
-          // Modo público: gera com base no conhecimento da IA
-          // Primeiro, verifica se a IA possui conhecimento sobre o livro
-          const verificationPrompt = `Você conhece o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}?
-Responda apenas SIM ou NÃO.`
-          
-          const verification = await callAI(verificationPrompt)
-          
-          if (verification.trim().toUpperCase().includes('NÃO') || verification.trim().toUpperCase() === 'NAO') {
-            throw new Error('Não possuo conhecimento suficiente sobre este livro para gerar um resumo narrativo fiel. Por favor, tente outro livro ou use a versão admin com upload de arquivo.')
-          }
-          
-          // Identifica o tipo de obra
-          const typePrompt = `O livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')} é:
-A) Um romance/narrativa contínua
-B) Uma coletânea de contos, crônicas ou artigos independentes
-
-Responda apenas A ou B.`
-          
-          const typeResponse = await callAI(typePrompt)
-          const isCollection = typeResponse.trim().toUpperCase().includes('B')
-          
-          if (isCollection) {
-            // Para coletâneas: resumir cada conto/crônica/artigo separadamente
-            showToast('Identificado como coletânea. Gerando resumos individuais...', 'info')
-            
-            const listPrompt = `Liste os títulos dos principais contos, crônicas ou artigos do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
-Liste APENAS os títulos, um por linha, sem numeração ou formatação adicional.
-Máximo de 15 itens.`
-            
-            const itemsList = await callAI(listPrompt)
-            const items = itemsList.split('\n').filter(item => item.trim().length > 0).slice(0, 15)
-            
-            showToast(`Resumindo ${items.length} itens...`, 'info')
-            
-            const itemSummaries = []
-            for (let i = 0; i < items.length; i++) {
-              const itemTitle = items[i].trim()
-              const itemPrompt = `Faça um resumo narrativo do conto/crônica/artigo "${itemTitle}" do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
-
-IMPORTANTE:
-- Resumo entre 800-1500 caracteres
-- Mantenha o estilo e voz do autor
-- Não faça introduções. Vá direto ao conteúdo.
-- Português Brasileiro
-
-Título: ${itemTitle}
-
-Resumo:`
-              
-              await new Promise(r => setTimeout(r, i * 800)) // Delay para evitar rate limit
-              const itemSummary = await callAI(itemPrompt)
-              itemSummaries.push(`**${itemTitle}**\n\n${itemSummary}`)
-            }
-            
-            finalSummary = itemSummaries.join('\n\n---\n\n')
-            
-          } else {
-            // Para narrativas contínuas: dividir em partes e depois unificar
-            showToast('Identificado como narrativa contínua. Dividindo em partes...', 'info')
-            
-            // Identifica as principais partes do livro
-            const structurePrompt = `Divida o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')} em suas principais partes estruturais (mínimo 3, máximo 6 partes).
-Pode ser por capítulos, arcos narrativos ou seções temáticas.
-Liste APENAS os títulos/descrições das partes, uma por linha, sem numeração.
-
-Exemplo de formato:
-Início - Apresentação dos personagens
-Desenvolvimento - O conflito principal
-Clímax - A resolução
-Conclusão - Desfecho`
-            
-            const structureResponse = await callAI(structurePrompt)
-            const parts = structureResponse.split('\n').filter(p => p.trim().length > 0).slice(0, 6)
-            
-            if (parts.length < 3) {
-              // Se não conseguiu dividir adequadamente, força 3 partes genéricas
-              parts.length = 0
-              parts.push('Início e apresentação')
-              parts.push('Desenvolvimento e conflitos principais')
-              parts.push('Clímax e desfecho')
-            }
-            
-            showToast(`Gerando resumo de ${parts.length} partes...`, 'info')
-            
-            // Gera resumo de cada parte
-            const partSummaries = []
-            for (let i = 0; i < parts.length; i++) {
-              const partDesc = parts[i].trim()
-              const partPrompt = `Você é um especialista em resumos narrativos.
-Faça um resumo narrativo detalhado da seguinte parte do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}:
-
-PARTE ${i + 1} de ${parts.length}: ${partDesc}
-
-IMPORTANTE:
-- Resumo entre 1500-2500 caracteres
-- Mantenha o estilo e voz do autor original
-- Inclua detalhes importantes da trama, personagens e acontecimentos
-- Não faça introduções como "Nesta parte...". Vá direto à narrativa.
-- Português Brasileiro
-
-Gere o resumo narrativo desta parte agora:`
-              
-              await new Promise(r => setTimeout(r, i * 1000)) // Delay para evitar rate limit
-              const partSummary = await callAI(partPrompt)
-              partSummaries.push(partSummary.trim())
-            }
-            
-            // Unifica os resumos em um texto coeso
-            showToast('Unificando resumos...', 'info')
-            
-            const unificationPrompt = `Você é um editor literário especialista.
-Unifique os seguintes resumos de partes do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')} em um único resumo narrativo coeso.
-
-RESUMOS DAS PARTES:
-
-${partSummaries.map((summary, i) => `=== PARTE ${i + 1} ===\n${summary}`).join('\n\n')}
-
-IMPORTANTE:
-- Crie um resumo narrativo único e fluido (~${partSummaries.join(' ').length * 0.9} caracteres)
-- Elimine repetições e redundâncias
-- Mantenha todos os detalhes importantes
-- Mantenha o estilo e voz do autor original
-- Não faça introduções. Vá direto à narrativa.
-- Português Brasileiro
-- Use transições naturais entre as partes
-
-Gere o resumo unificado agora:`
-            
-            finalSummary = await callAI(unificationPrompt)
-          }
-        }
-
-      } else {
-        // Modo Análise Crítica
-        const prompt = `Você é um especialista em resumos de livros. Crie uma análise crítica detalhada do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
-
-IMPORTANTE:
-- NÃO faça introduções conversacionais.
-- Tópicos claros, insights práticos.
-- Tamanho: ~15.000 caracteres.
-- Português Brasileiro.
-
-${selectedBook.description ? `Descrição: ${selectedBook.description}` : ''}
-
-Gere a análise agora:`
-        finalSummary = await callAI(prompt)
+Por favor, tente outro livro que esteja em minha base de conhecimento.`)
       }
+      
+      showToast('Gerando resumo estilo Blink...', 'info')
+      
+      // Prompt unificado estilo Blink com instruções rigorosas
+      const prompt = `Escreva um resumo detalhado do livro "${selectedBook.title}", de ${selectedBook.authors?.join(', ')}, seguindo o estilo de um 'Blink'. O texto deve ser estruturado da seguinte forma:
+
+Introdução: Comece com um título chamativo no formato "Por que ler este livro?" e apresente a tese central ou o conflito principal da obra.
+
+Capítulos Adaptáveis: Divida o conteúdo em uma quantidade de capítulos (seções) que faça sentido para a obra (geralmente entre 5 e 10). Cada capítulo deve começar com um título em negrito no formato "**Capítulo X de Y**" seguido de uma frase que resuma a lição ou o arco narrativo daquela seção.
+
+Nível de Análise: O texto não deve ser apenas um relato de fatos. Ele deve oferecer uma análise profunda sobre o comportamento humano, motivações psicológicas, contextos históricos ou aplicações práticas, dependendo do gênero do livro.
+
+Estilo e Tom: Use um tom empático, instrutivo e fluído. Evite listas de tópicos (bullets); prefira parágrafos narrativos que conectem uma ideia à outra.
+
+Critério de Extensão: Garanta que cada seção tenha profundidade suficiente para que o leitor sinta que compreendeu a lógica do autor, não apenas o resultado final.
+
+Resumo Final: Encerre com uma seção chamada "**Resumo Final**" que sintetize a mensagem mais duradoura do livro em um parágrafo impactante.
+
+Ajuste o número total de capítulos para cobrir todos os pilares essenciais do livro sem ser repetitivo ou superficial.
+
+CRÍTICO: Baseie-se SOMENTE no conteúdo real do livro. NÃO invente, NÃO suponha, NÃO crie informações que não estejam no livro. Se você não tem certeza sobre alguma informação específica, omita-a ao invés de inventá-la.
+
+${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
+
+Gere o resumo completo agora em português brasileiro:`
+
+      const finalSummary = await callAI(prompt)
 
       if (finalSummary) {
         // Limpar caracteres de separação markdown que possam ter sido incluídos
-        finalSummary = finalSummary
+        const cleanedSummary = finalSummary
           .replace(/^#+\s*$/gm, '') // Remove linhas que só contêm # (heading vazios)
           .replace(/\n{3,}/g, '\n\n') // Remove excesso de quebras de linha
           .trim()
         
-        setSummary(finalSummary)
+        setSummary(cleanedSummary)
         setView('summary')
         showToast('Conteúdo gerado com sucesso!', 'success')
       } else {
@@ -787,89 +398,147 @@ Gere a análise agora:`
 
       const accessToken = await tokenResponse.text()
 
-      // Limpar o texto removendo formatações markdown
-      const cleanText = summary
-        .replace(/#{1,6}\s/g, '') // Remove headers markdown
-        .replace(/\*\*/g, '') // Remove bold
-        .replace(/\*/g, '') // Remove italic
-        .replace(/`/g, '') // Remove code blocks
-        .replace(/\n\n+/g, '\n') // Remove múltiplas quebras de linha
-        .trim()
-
-      // Azure aceita SSML. Vamos dividir em chunks seguros.
-      const maxChunkSize = 3000 // Limite seguro para SSML
-      const chunks = []
-      let currentChunk = ''
-
-      const sentences = cleanText.split(/(?<=[.!?])\s+/)
-      for (const sentence of sentences) {
-        if ((currentChunk + sentence).length > maxChunkSize) {
-          if (currentChunk) chunks.push(currentChunk.trim())
-          currentChunk = sentence
-        } else {
-          currentChunk += (currentChunk ? ' ' : '') + sentence
+      // 2. Extrair capítulos do resumo
+      const chapterRegex = /\*?\*?Capítulo\s+(\d+)\s+de\s+(\d+)\*?\*?[:\-\s]*(.*?)(?=\n|$)/gi
+      const matches = [...summary.matchAll(chapterRegex)]
+      
+      let chaptersToGenerate = []
+      
+      if (matches.length > 0) {
+        // Tem capítulos definidos - gera áudio para cada um
+        showToast(`Encontrados ${matches.length} capítulos. Gerando áudio...`, 'info')
+        
+        for (let i = 0; i < matches.length; i++) {
+          const match = matches[i]
+          const chapterNum = parseInt(match[1])
+          const chapterTitle = match[3]?.trim() || `Capítulo ${chapterNum}`
+          const startPos = match.index
+          const endPos = i < matches.length - 1 ? matches[i + 1].index : summary.length
+          
+          const chapterContent = summary.substring(startPos, endPos)
+          
+          chaptersToGenerate.push({
+            number: chapterNum,
+            title: chapterTitle,
+            content: chapterContent,
+            startPos,
+            endPos
+          })
         }
+      } else {
+        // Não tem capítulos - gera um único áudio completo
+        showToast('Nenhum capítulo detectado. Gerando áudio completo...', 'info')
+        chaptersToGenerate.push({
+          number: 1,
+          title: 'Resumo Completo',
+          content: summary,
+          startPos: 0,
+          endPos: summary.length
+        })
       }
-      if (currentChunk) chunks.push(currentChunk.trim())
 
-      // Limitar a 10 chunks para evitar custos excessivos/tempo
-      const chunksToProcess = chunks.slice(0, 10)
+      const generatedChapters = []
+      
+      // Gera áudio para cada capítulo
+      for (let i = 0; i < chaptersToGenerate.length; i++) {
+        const chapter = chaptersToGenerate[i]
+        showToast(`Gerando áudio do capítulo ${chapter.number}/${chaptersToGenerate.length}...`, 'info')
+        
+        // Limpar o texto removendo formatações markdown
+        const cleanText = chapter.content
+          .replace(/#{1,6}\s/g, '') // Remove headers markdown
+          .replace(/\*\*/g, '') // Remove bold
+          .replace(/\*/g, '') // Remove italic
+          .replace(/`/g, '') // Remove code blocks
+          .replace(/\n\n+/g, '\n') // Remove múltiplas quebras de linha
+          .trim()
 
-      showToast(`Gerando áudio... (${chunksToProcess.length} partes)`, 'info')
+        // Dividir em chunks se necessário (cada chunk não pode passar de 3000 caracteres)
+        const maxChunkSize = 3000
+        const chunks = []
+        let currentChunk = ''
 
-      // Gerar áudio para cada chunk
-      const audioBuffers = []
-      for (let i = 0; i < chunksToProcess.length; i++) {
-        const chunkText = chunksToProcess[i]
-
-        // Construir SSML com voz e velocidade configuradas
-        const voiceConfig = availableVoices.find(v => v.id === selectedVoice) || availableVoices[0]
-
-        const ssml = `
-          <speak version='1.0' xml:lang='pt-BR'>
-            <voice xml:lang='pt-BR' xml:gender='${voiceConfig.gender}' name='${selectedVoice}'>
-              <prosody rate='${speechRate}'>
-                ${chunkText}
-              </prosody>
-            </voice>
-          </speak>`
-
-        const response = await fetch(
-          `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/ssml+xml',
-              'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
-              'User-Agent': 'BookSum'
-            },
-            body: ssml
+        const sentences = cleanText.split(/(?<=[.!?])\s+/)
+        for (const sentence of sentences) {
+          if ((currentChunk + sentence).length > maxChunkSize) {
+            if (currentChunk) chunks.push(currentChunk.trim())
+            currentChunk = sentence
+          } else {
+            currentChunk += (currentChunk ? ' ' : '') + sentence
           }
-        )
+        }
+        if (currentChunk) chunks.push(currentChunk.trim())
 
-        if (!response.ok) {
-          console.error('Erro Azure:', await response.text())
-          throw new Error(`Erro na API Azure TTS: ${response.status}`)
+        // Gerar áudio para cada chunk deste capítulo
+        const audioBuffers = []
+        for (let j = 0; j < chunks.length; j++) {
+          const chunkText = chunks[j]
+
+          // Construir SSML com voz e velocidade configuradas
+          const voiceConfig = availableVoices.find(v => v.id === selectedVoice) || availableVoices[0]
+
+          const ssml = `
+            <speak version='1.0' xml:lang='pt-BR'>
+              <voice xml:lang='pt-BR' xml:gender='${voiceConfig.gender}' name='${selectedVoice}'>
+                <prosody rate='${speechRate}'>
+                  ${chunkText}
+                </prosody>
+              </voice>
+            </speak>`
+
+          const response = await fetch(
+            `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/ssml+xml',
+                'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
+                'User-Agent': 'BookSum'
+              },
+              body: ssml
+            }
+          )
+
+          if (!response.ok) {
+            console.error('Erro Azure:', await response.text())
+            throw new Error(`Erro na API Azure TTS: ${response.status}`)
+          }
+
+          const arrayBuffer = await response.arrayBuffer()
+          audioBuffers.push(new Uint8Array(arrayBuffer))
         }
 
-        const arrayBuffer = await response.arrayBuffer()
-        audioBuffers.push(new Uint8Array(arrayBuffer))
+        // Concatenar buffers deste capítulo
+        const totalLength = audioBuffers.reduce((acc, buf) => acc + buf.length, 0)
+        const combinedBuffer = new Uint8Array(totalLength)
+        let offset = 0
+        for (const buffer of audioBuffers) {
+          combinedBuffer.set(buffer, offset)
+          offset += buffer.length
+        }
+
+        const audioBlob = new Blob([combinedBuffer], { type: 'audio/mpeg' })
+        const chapterAudioUrl = URL.createObjectURL(audioBlob)
+        
+        generatedChapters.push({
+          number: chapter.number,
+          title: chapter.title,
+          audioUrl: chapterAudioUrl,
+          startPos: chapter.startPos,
+          endPos: chapter.endPos
+        })
       }
 
-      // Concatenar buffers
-      const totalLength = audioBuffers.reduce((acc, buf) => acc + buf.length, 0)
-      const combinedBuffer = new Uint8Array(totalLength)
-      let offset = 0
-      for (const buffer of audioBuffers) {
-        combinedBuffer.set(buffer, offset)
-        offset += buffer.length
+      // Salvar os capítulos com áudio
+      setAudioChapters(generatedChapters)
+      
+      // Também salva o primeiro capítulo como audioUrl principal para retrocompatibilidade
+      if (generatedChapters.length > 0) {
+        setAudioUrl(generatedChapters[0].audioUrl)
       }
-
-      const audioBlob = new Blob([combinedBuffer], { type: 'audio/mpeg' })
-      const url = URL.createObjectURL(audioBlob)
-      setAudioUrl(url)
-      showToast('Áudio gerado com sucesso!', 'success')
+      
+      showToast(`${generatedChapters.length} ${generatedChapters.length === 1 ? 'áudio gerado' : 'áudios gerados'} com sucesso!`, 'success')
     } catch (error) {
       console.error('Erro ao gerar áudio:', error)
       showToast(error.message || 'Erro ao gerar áudio', 'error')
@@ -892,6 +561,7 @@ Gere a análise agora:`
     setSelectedBook(null)
     setSummary(null)
     setAudioUrl(null)
+    setAudioChapters([])
   }
 
   return (
@@ -944,7 +614,6 @@ Gere a análise agora:`
             model={summaryModel}
             onModelChange={setSummaryModel}
             showModelSelector={isAdminMode}
-            showFileUpload={isAdminMode}
           />
         )}
 
@@ -953,6 +622,7 @@ Gere a análise agora:`
             book={selectedBook}
             summary={summary}
             audioUrl={audioUrl}
+            audioChapters={audioChapters}
             onGenerateAudio={handleGenerateAudio}
             loading={loading}
             selectedVoice={selectedVoice}

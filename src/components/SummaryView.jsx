@@ -7,6 +7,7 @@ function SummaryView({
     book,
     summary,
     audioUrl,
+    audioChapters,
     onGenerateAudio,
     loading,
     selectedVoice,
@@ -26,6 +27,8 @@ function SummaryView({
             <ReadingMode
                 book={book}
                 summary={summary}
+                audioUrl={audioUrl}
+                audioChapters={audioChapters}
                 onClose={() => setShowReadingMode(false)}
             />
         )

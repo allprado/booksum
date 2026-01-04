@@ -1,11 +1,65 @@
 import { useState, useEffect, useRef } from 'react'
 import './ReadingMode.css'
 
-function ReadingMode({ book, summary, onClose }) {
+function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [] }) {
     const [fontSize, setFontSize] = useState(18)
     const [theme, setTheme] = useState('dark') // dark, light, sepia
     const [progress, setProgress] = useState(0)
+    const [showIndex, setShowIndex] = useState(false)
+    const [chapters, setChapters] = useState([])
+    const [currentChapter, setCurrentChapter] = useState(0)
+    const [audioPlayer, setAudioPlayer] = useState(null)
     const contentRef = useRef(null)
+
+    // Extrai os capítulos do resumo
+    useEffect(() => {
+        const extractChapters = () => {
+            // Se temos audioChapters, usa eles como base
+            if (audioChapters && audioChapters.length > 0) {
+                const extractedChapters = audioChapters.map((chapter, index) => ({
+                    id: `chapter-${index}`,
+                    number: chapter.number,
+                    title: chapter.title,
+                    position: chapter.startPos,
+                    audioUrl: chapter.audioUrl
+                }))
+                setChapters(extractedChapters)
+                return
+            }
+            
+            // Procura por padrões de capítulos: "**Capítulo X de Y**" ou "Capítulo X de Y"
+            const chapterRegex = /\*?\*?Capítulo\s+(\d+)\s+de\s+(\d+)\*?\*?[:\-\s]*(.*?)(?=\n|$)/gi
+            const matches = [...summary.matchAll(chapterRegex)]
+            
+            if (matches.length > 0) {
+                const extractedChapters = matches.map((match, index) => ({
+                    id: `chapter-${index}`,
+                    number: parseInt(match[1]),
+                    total: parseInt(match[2]),
+                    title: match[3].trim() || `Capítulo ${match[1]}`,
+                    position: match.index,
+                    audioUrl: null
+                }))
+                setChapters(extractedChapters)
+            } else {
+                // Se não encontrar capítulos no formato esperado, tenta encontrar outros títulos em negrito
+                const headingRegex = /\*\*(.*?)\*\*/g
+                const headingMatches = [...summary.matchAll(headingRegex)]
+                const extractedHeadings = headingMatches
+                    .filter(match => match[1].length > 3 && match[1].length < 100)
+                    .map((match, index) => ({
+                        id: `section-${index}`,
+                        number: index + 1,
+                        title: match[1].trim(),
+                        position: match.index,
+                        audioUrl: null
+                    }))
+                setChapters(extractedHeadings)
+            }
+        }
+        
+        extractChapters()
+    }, [summary, audioChapters])
 
     useEffect(() => {
         const handleScroll = () => {
@@ -14,6 +68,21 @@ function ReadingMode({ book, summary, onClose }) {
             const { scrollTop, scrollHeight, clientHeight } = contentRef.current
             const scrollProgress = (scrollTop / (scrollHeight - clientHeight)) * 100
             setProgress(Math.min(100, Math.max(0, scrollProgress)))
+            
+            // Detecta o capítulo atual baseado na posição de scroll
+            if (chapters.length > 0) {
+                const elements = chapters.map(ch => document.getElementById(ch.id)).filter(Boolean)
+                let currentIdx = 0
+                
+                for (let i = 0; i < elements.length; i++) {
+                    const rect = elements[i].getBoundingClientRect()
+                    if (rect.top <= 200) { // 200px de margem do topo
+                        currentIdx = i
+                    }
+                }
+                
+                setCurrentChapter(currentIdx)
+            }
         }
 
         const content = contentRef.current
@@ -21,7 +90,7 @@ function ReadingMode({ book, summary, onClose }) {
             content.addEventListener('scroll', handleScroll)
             return () => content.removeEventListener('scroll', handleScroll)
         }
-    }, [])
+    }, [chapters])
 
     const increaseFontSize = () => {
         setFontSize(prev => Math.min(28, prev + 2))
@@ -31,14 +100,120 @@ function ReadingMode({ book, summary, onClose }) {
         setFontSize(prev => Math.max(14, prev - 2))
     }
 
+    const scrollToChapter = (chapterIndex) => {
+        if (!contentRef.current) return
+        
+        const chapterId = chapters[chapterIndex]?.id
+        if (!chapterId) return
+        
+        const element = document.getElementById(chapterId)
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            setShowIndex(false)
+        }
+    }
+
+    const playChapterAudio = () => {
+        const chapter = chapters[currentChapter]
+        
+        if (!chapter) return
+        
+        // Se já está tocando, pausa
+        if (audioPlayer) {
+            audioPlayer.pause()
+            setAudioPlayer(null)
+            showAudioFeedback('⏸️ Áudio pausado')
+            return
+        }
+        
+        // Se o capítulo tem áudio específico, toca ele
+        if (chapter.audioUrl) {
+            const player = new Audio(chapter.audioUrl)
+            player.play()
+            setAudioPlayer(player)
+            
+            // Mostra feedback ao usuário
+            showAudioFeedback(`🎧 Reproduzindo: ${chapter.title}`)
+            
+            // Limpa o player quando terminar
+            player.onended = () => {
+                setAudioPlayer(null)
+            }
+        } 
+        // Se não tem áudio específico mas tem audioUrl geral, toca ele
+        else if (audioUrl) {
+            const player = new Audio(audioUrl)
+            player.play()
+            setAudioPlayer(player)
+            
+            showAudioFeedback('🎧 Reproduzindo áudio do resumo')
+            
+            player.onended = () => {
+                setAudioPlayer(null)
+            }
+        }
+        else {
+            showAudioFeedback('⚠️ Áudio não disponível para este capítulo')
+        }
+    }
+    
+    const showAudioFeedback = (message) => {
+        const audioElement = document.createElement('div')
+        audioElement.style.cssText = `
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: var(--color-primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 1000;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideInRight 0.3s ease;
+        `
+        audioElement.textContent = message
+        document.body.appendChild(audioElement)
+        
+        // Remove o feedback após 3 segundos
+        setTimeout(() => {
+            audioElement.style.animation = 'slideOutRight 0.3s ease'
+            setTimeout(() => audioElement.remove(), 300)
+        }, 3000)
+    }
+    
+    // Limpa o player quando o componente é desmontado
+    useEffect(() => {
+        return () => {
+            if (audioPlayer) {
+                audioPlayer.pause()
+            }
+        }
+    }, [audioPlayer])
+
     const formatText = (text) => {
-        return text
+        // Adiciona IDs aos capítulos para navegação
+        let formattedText = text
+            .replace(/\*?\*?Capítulo\s+(\d+)\s+de\s+(\d+)\*?\*?[:\-\s]*(.*?)(?=\n|$)/gi, (match, num, total, title, offset) => {
+                const index = chapters.findIndex(ch => ch.position === offset)
+                const id = index >= 0 ? chapters[index].id : `chapter-${num}`
+                return `<h2 id="${id}" class="reading-h2">Capítulo ${num} de ${total}${title ? ': ' + title : ''}</h2>`
+            })
+            .replace(/\*\*([^*]+)\*\*/g, (match, content, offset) => {
+                // Para outros títulos em negrito que não sejam capítulos
+                const chapter = chapters.find(ch => ch.position === offset && ch.id.startsWith('section-'))
+                if (chapter) {
+                    return `<h3 id="${chapter.id}" class="reading-h3">${content}</h3>`
+                }
+                return `<strong>${content}</strong>`
+            })
             .replace(/## (.*?)$/gm, '<h2 class="reading-h2">$1</h2>')
             .replace(/### (.*?)$/gm, '<h3 class="reading-h3">$1</h3>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
             .replace(/\n\n/g, '</p><p class="reading-p">')
             .replace(/\n/g, '<br/>')
+        
+        return formattedText
     }
 
     const estimatedReadTime = Math.ceil(summary.length / 1250)
@@ -69,6 +244,44 @@ function ReadingMode({ book, summary, onClose }) {
                 </div>
 
                 <div className="reading-controls">
+                    {chapters.length > 0 && (
+                        <button
+                            className="reading-control-btn"
+                            onClick={() => setShowIndex(!showIndex)}
+                            aria-label="Índice"
+                            title="Índice de capítulos"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="8" y1="6" x2="21" y2="6" />
+                                <line x1="8" y1="12" x2="21" y2="12" />
+                                <line x1="8" y1="18" x2="21" y2="18" />
+                                <line x1="3" y1="6" x2="3.01" y2="6" />
+                                <line x1="3" y1="12" x2="3.01" y2="12" />
+                                <line x1="3" y1="18" x2="3.01" y2="18" />
+                            </svg>
+                        </button>
+                    )}
+                    {(audioUrl || (chapters[currentChapter]?.audioUrl)) && (
+                        <button
+                            className={`reading-control-btn ${audioPlayer ? 'playing' : ''}`}
+                            onClick={playChapterAudio}
+                            aria-label="Reproduzir áudio"
+                            title={chapters[currentChapter]?.audioUrl 
+                                ? `Reproduzir: ${chapters[currentChapter]?.title}` 
+                                : 'Reproduzir áudio do resumo'}
+                        >
+                            {audioPlayer ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <rect x="6" y="4" width="4" height="16" />
+                                    <rect x="14" y="4" width="4" height="16" />
+                                </svg>
+                            ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polygon points="5 3 19 12 5 21 5 3" />
+                                </svg>
+                            )}
+                        </button>
+                    )}
                     <button
                         className="reading-control-btn"
                         onClick={decreaseFontSize}
@@ -87,6 +300,45 @@ function ReadingMode({ book, summary, onClose }) {
                     </button>
                 </div>
             </header>
+
+            {showIndex && chapters.length > 0 && (
+                <div className="reading-index-overlay" onClick={() => setShowIndex(false)}>
+                    <div className="reading-index" onClick={(e) => e.stopPropagation()}>
+                        <div className="reading-index-header">
+                            <h3>Índice de Capítulos</h3>
+                            <button
+                                className="reading-index-close"
+                                onClick={() => setShowIndex(false)}
+                                aria-label="Fechar índice"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M18 6L6 18M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="reading-index-list">
+                            {chapters.map((chapter, index) => (
+                                <button
+                                    key={chapter.id}
+                                    className={`reading-index-item ${index === currentChapter ? 'current' : ''}`}
+                                    onClick={() => scrollToChapter(index)}
+                                >
+                                    <span className="index-number">{chapter.number || index + 1}</span>
+                                    <span className="index-title">
+                                        {chapter.title}
+                                        {chapter.audioUrl && (
+                                            <span className="audio-badge" title="Áudio disponível">🎧</span>
+                                        )}
+                                    </span>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <polyline points="9 18 15 12 9 6" />
+                                    </svg>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div
                 className="reading-content"
