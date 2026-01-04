@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import './AudioPlayer.css'
 
-function AudioPlayer({ audioUrl, audioChapters = [], book }) {
+function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudio, summary, showToast }) {
     const audioRef = useRef(null)
     const progressRef = useRef(null)
 
@@ -13,6 +13,7 @@ function AudioPlayer({ audioUrl, audioChapters = [], book }) {
     const [showVolumeSlider, setShowVolumeSlider] = useState(false)
     const [currentChapterIndex, setCurrentChapterIndex] = useState(0)
     const [showChapterIndex, setShowChapterIndex] = useState(false)
+    const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
 
     // Se temos audioChapters, usar o primeiro; caso contrário usar audioUrl
     const hasChapters = audioChapters && audioChapters.length > 0
@@ -53,15 +54,77 @@ function AudioPlayer({ audioUrl, audioChapters = [], book }) {
         }
     }
 
-    const goToPreviousChapter = () => {
+    const goToPreviousChapter = async () => {
         if (currentChapterIndex > 0) {
-            goToChapter(currentChapterIndex - 1)
+            const prevChapter = audioChapters[currentChapterIndex - 1]
+            
+            // Se o capítulo anterior não tem áudio, gera sob demanda
+            if (!prevChapter.audioUrl && onGenerateChapterAudio && summary) {
+                setIsGeneratingAudio(true)
+                if (showToast) {
+                    showToast(`Gerando áudio do capítulo ${prevChapter.number}...`, 'info', true)
+                }
+                
+                try {
+                    await onGenerateChapterAudio({
+                        number: prevChapter.number,
+                        title: prevChapter.title,
+                        content: summary.substring(prevChapter.startPos, prevChapter.endPos),
+                        startPos: prevChapter.startPos,
+                        endPos: prevChapter.endPos
+                    })
+                    
+                    if (showToast) {
+                        showToast(`Áudio do capítulo ${prevChapter.number} gerado!`, 'success')
+                    }
+                    goToChapter(currentChapterIndex - 1)
+                } catch (error) {
+                    if (showToast) {
+                        showToast(`Erro ao gerar áudio do capítulo ${prevChapter.number}`, 'error')
+                    }
+                } finally {
+                    setIsGeneratingAudio(false)
+                }
+            } else {
+                goToChapter(currentChapterIndex - 1)
+            }
         }
     }
 
-    const goToNextChapter = () => {
+    const goToNextChapter = async () => {
         if (currentChapterIndex < audioChapters.length - 1) {
-            goToChapter(currentChapterIndex + 1)
+            const nextChapter = audioChapters[currentChapterIndex + 1]
+            
+            // Se o próximo capítulo não tem áudio, gera sob demanda
+            if (!nextChapter.audioUrl && onGenerateChapterAudio && summary) {
+                setIsGeneratingAudio(true)
+                if (showToast) {
+                    showToast(`Gerando áudio do capítulo ${nextChapter.number}...`, 'info', true)
+                }
+                
+                try {
+                    await onGenerateChapterAudio({
+                        number: nextChapter.number,
+                        title: nextChapter.title,
+                        content: summary.substring(nextChapter.startPos, nextChapter.endPos),
+                        startPos: nextChapter.startPos,
+                        endPos: nextChapter.endPos
+                    })
+                    
+                    if (showToast) {
+                        showToast(`Áudio do capítulo ${nextChapter.number} gerado!`, 'success')
+                    }
+                    goToChapter(currentChapterIndex + 1)
+                } catch (error) {
+                    if (showToast) {
+                        showToast(`Erro ao gerar áudio do capítulo ${nextChapter.number}`, 'error')
+                    }
+                } finally {
+                    setIsGeneratingAudio(false)
+                }
+            } else {
+                goToChapter(currentChapterIndex + 1)
+            }
         }
     }
 
@@ -234,7 +297,7 @@ function AudioPlayer({ audioUrl, audioChapters = [], book }) {
                     <button
                         className="control-btn chapter-btn"
                         onClick={goToPreviousChapter}
-                        disabled={currentChapterIndex === 0}
+                        disabled={currentChapterIndex === 0 || isGeneratingAudio}
                         title="Capítulo anterior"
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -287,7 +350,7 @@ function AudioPlayer({ audioUrl, audioChapters = [], book }) {
                     <button
                         className="control-btn chapter-btn"
                         onClick={goToNextChapter}
-                        disabled={currentChapterIndex === audioChapters.length - 1}
+                        disabled={currentChapterIndex === audioChapters.length - 1 || isGeneratingAudio}
                         title="Próximo capítulo"
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

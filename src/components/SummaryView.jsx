@@ -15,7 +15,8 @@ function SummaryView({
     onVoiceChange,
     speechRate,
     onRateChange,
-    availableVoices
+    availableVoices,
+    showToast
 }) {
     const [activeTab, setActiveTab] = useState('text') // text, audio
     const [showReadingMode, setShowReadingMode] = useState(false)
@@ -32,6 +33,7 @@ function SummaryView({
                 audioChapters={audioChapters}
                 onGenerateChapterAudio={onGenerateChapterAudio}
                 onClose={() => setShowReadingMode(false)}
+                showToast={showToast}
             />
         )
     }
@@ -119,7 +121,14 @@ function SummaryView({
 
             {activeTab === 'audio' && (
                 <div className="audio-content">
-                    <AudioPlayer audioUrl={audioUrl} audioChapters={audioChapters} book={book} />
+                    <AudioPlayer 
+                        audioUrl={audioUrl} 
+                        audioChapters={audioChapters} 
+                        book={book}
+                        onGenerateChapterAudio={onGenerateChapterAudio}
+                        summary={summary}
+                        showToast={showToast}
+                    />
                 </div>
             )}
         </div>

@@ -39,9 +39,13 @@ function App({ isAdminMode = false }) {
     { id: 'pt-BR-ThalitaNeural', label: 'Thalita (Jovem)', gender: 'Female' }
   ]
 
-  const showToast = useCallback((message, type = 'info') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 4000)
+  const showToast = useCallback((message, type = 'info', persistent = false) => {
+    setToast({ message, type, persistent })
+    
+    // Apenas limpa o toast se não for persistente
+    if (!persistent) {
+      setTimeout(() => setToast(null), 4000)
+    }
   }, [])
 
   const handleSearch = useCallback(async (query, pageNum = 1) => {
@@ -305,7 +309,7 @@ function App({ isAdminMode = false }) {
 
     try {
       // Primeiro, verifica se a IA possui conhecimento real sobre o livro
-      showToast('Verificando conhecimento sobre o livro...', 'info')
+      showToast('Verificando conhecimento sobre o livro...', 'info', true)
       
       const verificationPrompt = `Você tem conhecimento real e detalhado sobre o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}?
 
@@ -322,10 +326,10 @@ Sua resposta (SIM ou NÃO):`
 Por favor, tente outro livro que esteja em minha base de conhecimento.`)
       }
       
-      showToast('Gerando resumo estilo Blink...', 'info')
+      showToast('Gerando resumo estilo Blink...', 'info', true)
       
       // ETAPA 1: Gerar a estrutura dos capítulos
-      showToast('Etapa 1/2: Criando estrutura dos capítulos...', 'info')
+      showToast('Etapa 1/2: Criando estrutura dos capítulos...', 'info', true)
       
       const structurePrompt = `Você é um especialista em resumos de livros estilo Blink.
 
@@ -353,7 +357,7 @@ Estrutura:`
       const totalChapters = totalChaptersMatch ? parseInt(totalChaptersMatch[2]) : lines.filter(l => l.includes('Capítulo')).length
       
       // ETAPA 2: Gerar cada capítulo com conhecimento da estrutura
-      showToast('Etapa 2/2: Gerando conteúdo dos capítulos...', 'info')
+      showToast('Etapa 2/2: Gerando conteúdo dos capítulos...', 'info', true)
       
       const chapterContents = []
       const chapterLines = lines.filter(l => l.includes('Capítulo'))
@@ -362,7 +366,7 @@ Estrutura:`
         const chapterLine = chapterLines[i]
         const chapterNum = i + 1
         
-        showToast(`Gerando capítulo ${chapterNum}/${chapterLines.length}...`, 'info')
+        showToast(`Gerando capítulo ${chapterNum}/${chapterLines.length}...`, 'info', true)
         
         const chapterPrompt = `Você é um especialista em resumos de livros estilo Blink.
 
@@ -397,7 +401,7 @@ Gere agora o conteúdo detalhado deste capítulo em português brasileiro:`
       }
       
       // ETAPA 3: Gerar introdução
-      showToast('Gerando introdução e finalizando...', 'info')
+      showToast('Gerando introdução e finalizando...', 'info', true)
       
       const introPrompt = `Você é um especialista em resumos de livros estilo Blink.
 
@@ -457,7 +461,7 @@ Gere o resumo final em português brasileiro:`
         
         // Gerar automaticamente áudio do primeiro capítulo
         setLoading(true)
-        showToast('Gerando áudio do primeiro capítulo...', 'info')
+        showToast('Gerando áudio do primeiro capítulo...', 'info', true)
         
         // Usar voz feminina padrão e velocidade 1x
         setSelectedVoice('pt-BR-FranciscaNeural')
@@ -916,6 +920,7 @@ Gere o resumo final em português brasileiro:`
             speechRate={speechRate}
             onRateChange={setSpeechRate}
             availableVoices={availableVoices}
+            showToast={showToast}
           />
         )}
       </main>

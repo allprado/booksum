@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './ReadingMode.css'
 
-function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio }) {
+function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio, showToast }) {
     const [fontSize, setFontSize] = useState(18)
     const [theme, setTheme] = useState('dark') // dark, light, sepia
     const [progress, setProgress] = useState(0)
@@ -13,38 +13,35 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     const [isAudioPlaying, setIsAudioPlaying] = useState(false)
     const [currentAudioTime, setCurrentAudioTime] = useState(0)
     const [audioDuration, setAudioDuration] = useState(0)
+    const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
     const audioRef = useRef(null)
     const contentRef = useRef(null)
 
     // Extrai os capítulos do resumo
     useEffect(() => {
         const extractChapters = () => {
-            // Se temos audioChapters, usa eles como base
-            if (audioChapters && audioChapters.length > 0) {
-                const extractedChapters = audioChapters.map((chapter, index) => ({
-                    id: `chapter-${index}`,
-                    number: chapter.number,
-                    title: chapter.title,
-                    position: chapter.startPos,
-                    audioUrl: chapter.audioUrl
-                }))
-                setChapters(extractedChapters)
-                return
-            }
-            
             // Procura por padrões de capítulos: "**Capítulo X de Y**" ou "Capítulo X de Y"
             const chapterRegex = /\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi
             const matches = [...summary.matchAll(chapterRegex)]
             
             if (matches.length > 0) {
-                const extractedChapters = matches.map((match, index) => ({
-                    id: `chapter-${index}`,
-                    number: parseInt(match[1]),
-                    total: parseInt(match[2]),
-                    title: match[3].trim().replace(/\*+/g, '') || `Capítulo ${match[1]}`,
-                    position: match.index,
-                    audioUrl: null
-                }))
+                const extractedChapters = matches.map((match, index) => {
+                    const chapterNum = parseInt(match[1])
+                    
+                    // Procura se existe audioChapter correspondente
+                    const audioChapter = audioChapters.find(ac => ac.number === chapterNum)
+                    
+                    return {
+                        id: `chapter-${index}`,
+                        number: chapterNum,
+                        total: parseInt(match[2]),
+                        title: match[3].trim().replace(/\*+/g, '') || `Capítulo ${match[1]}`,
+                        position: match.index,
+                        audioUrl: audioChapter?.audioUrl || null,
+                        startPos: audioChapter?.startPos || match.index,
+                        endPos: audioChapter?.endPos || null
+                    }
+                })
                 setChapters(extractedChapters)
             } else {
                 // Se não encontrar capítulos no formato esperado, tenta encontrar outros títulos em negrito
@@ -52,13 +49,19 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 const headingMatches = [...summary.matchAll(headingRegex)]
                 const extractedHeadings = headingMatches
                     .filter(match => match[1].length > 3 && match[1].length < 100)
-                    .map((match, index) => ({
-                        id: `section-${index}`,
-                        number: index + 1,
-                        title: match[1].trim(),
-                        position: match.index,
-                        audioUrl: null
-                    }))
+                    .map((match, index) => {
+                        const audioChapter = audioChapters[index]
+                        
+                        return {
+                            id: `section-${index}`,
+                            number: index + 1,
+                            title: match[1].trim(),
+                            position: match.index,
+                            audioUrl: audioChapter?.audioUrl || null,
+                            startPos: audioChapter?.startPos || match.index,
+                            endPos: audioChapter?.endPos || null
+                        }
+                    })
                 setChapters(extractedHeadings)
             }
         }
@@ -128,22 +131,38 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         setIsAudioPlaying(!isAudioPlaying)
     }
 
-    const goToNextAudioChapter = () => {
+    const goToNextAudioChapter = async () => {
         if (currentChapter < audioChapters.length - 1) {
             const nextChapter = audioChapters[currentChapter + 1]
             
             // Se o próximo capítulo não tem áudio, gera sob demanda
             if (!nextChapter.audioUrl && onGenerateChapterAudio) {
-                onGenerateChapterAudio({
-                    number: nextChapter.number,
-                    title: nextChapter.title,
-                    content: summary.substring(nextChapter.startPos, nextChapter.endPos),
-                    startPos: nextChapter.startPos,
-                    endPos: nextChapter.endPos
-                }).then(() => {
+                setIsGeneratingAudio(true)
+                if (showToast) {
+                    showToast(`Gerando áudio do capítulo ${nextChapter.number}...`, 'info', true)
+                }
+                
+                try {
+                    await onGenerateChapterAudio({
+                        number: nextChapter.number,
+                        title: nextChapter.title,
+                        content: summary.substring(nextChapter.startPos, nextChapter.endPos),
+                        startPos: nextChapter.startPos,
+                        endPos: nextChapter.endPos
+                    })
+                    
+                    if (showToast) {
+                        showToast(`Áudio do capítulo ${nextChapter.number} gerado!`, 'success')
+                    }
                     setCurrentChapter(currentChapter + 1)
                     setIsAudioPlaying(true)
-                })
+                } catch (error) {
+                    if (showToast) {
+                        showToast(`Erro ao gerar áudio do capítulo ${nextChapter.number}`, 'error')
+                    }
+                } finally {
+                    setIsGeneratingAudio(false)
+                }
             } else {
                 setCurrentChapter(currentChapter + 1)
                 setIsAudioPlaying(true)
@@ -151,22 +170,38 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         }
     }
 
-    const goToPreviousAudioChapter = () => {
+    const goToPreviousAudioChapter = async () => {
         if (currentChapter > 0) {
             const prevChapter = audioChapters[currentChapter - 1]
             
             // Se o capítulo anterior não tem áudio, gera sob demanda
             if (!prevChapter.audioUrl && onGenerateChapterAudio) {
-                onGenerateChapterAudio({
-                    number: prevChapter.number,
-                    title: prevChapter.title,
-                    content: summary.substring(prevChapter.startPos, prevChapter.endPos),
-                    startPos: prevChapter.startPos,
-                    endPos: prevChapter.endPos
-                }).then(() => {
+                setIsGeneratingAudio(true)
+                if (showToast) {
+                    showToast(`Gerando áudio do capítulo ${prevChapter.number}...`, 'info', true)
+                }
+                
+                try {
+                    await onGenerateChapterAudio({
+                        number: prevChapter.number,
+                        title: prevChapter.title,
+                        content: summary.substring(prevChapter.startPos, prevChapter.endPos),
+                        startPos: prevChapter.startPos,
+                        endPos: prevChapter.endPos
+                    })
+                    
+                    if (showToast) {
+                        showToast(`Áudio do capítulo ${prevChapter.number} gerado!`, 'success')
+                    }
                     setCurrentChapter(currentChapter - 1)
                     setIsAudioPlaying(true)
-                })
+                } catch (error) {
+                    if (showToast) {
+                        showToast(`Erro ao gerar áudio do capítulo ${prevChapter.number}`, 'error')
+                    }
+                } finally {
+                    setIsGeneratingAudio(false)
+                }
             } else {
                 setCurrentChapter(currentChapter - 1)
                 setIsAudioPlaying(true)
@@ -406,7 +441,40 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                 <button
                                     key={chapter.id}
                                     className={`reading-index-item ${index === currentChapter ? 'current' : ''}`}
-                                    onClick={() => scrollToChapter(index)}
+                                    onClick={async () => {
+                                        scrollToChapter(index)
+                                        
+                                        // Se o capítulo não tem áudio e podemos gerar, gera sob demanda
+                                        if (!chapter.audioUrl && onGenerateChapterAudio && chapter.startPos !== undefined) {
+                                            setIsGeneratingAudio(true)
+                                            if (showToast) {
+                                                showToast(`Gerando áudio do capítulo ${chapter.number}...`, 'info', true)
+                                            }
+                                            
+                                            try {
+                                                // Calcular endPos se não tiver
+                                                const endPos = chapter.endPos || (chapters[index + 1]?.startPos || summary.length)
+                                                
+                                                await onGenerateChapterAudio({
+                                                    number: chapter.number,
+                                                    title: chapter.title,
+                                                    content: summary.substring(chapter.startPos, endPos),
+                                                    startPos: chapter.startPos,
+                                                    endPos: endPos
+                                                })
+                                                
+                                                if (showToast) {
+                                                    showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
+                                                }
+                                            } catch (error) {
+                                                if (showToast) {
+                                                    showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
+                                                }
+                                            } finally {
+                                                setIsGeneratingAudio(false)
+                                            }
+                                        }
+                                    }}
                                 >
                                     <span className="index-number">{chapter.number || index + 1}</span>
                                     <span className="index-title">
@@ -488,7 +556,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                     <button
                                         className="mini-ctrl-btn"
                                         onClick={goToPreviousAudioChapter}
-                                        disabled={currentChapter === 0}
+                                        disabled={currentChapter === 0 || isGeneratingAudio}
                                         title="Capítulo anterior"
                                     >
                                         ⏮
@@ -497,14 +565,15 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                     <button
                                         className="mini-play-btn"
                                         onClick={toggleAudioPlay}
+                                        disabled={isGeneratingAudio}
                                     >
-                                        {isAudioPlaying ? '⏸' : '▶'}
+                                        {isGeneratingAudio ? '⌛' : (isAudioPlaying ? '⏸' : '▶')}
                                     </button>
 
                                     <button
                                         className="mini-ctrl-btn"
                                         onClick={goToNextAudioChapter}
-                                        disabled={currentChapter === audioChapters.length - 1}
+                                        disabled={currentChapter === audioChapters.length - 1 || isGeneratingAudio}
                                         title="Próximo capítulo"
                                     >
                                         ⏭
@@ -520,22 +589,39 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         <button
                                             key={idx}
                                             className={`mini-chapter-btn ${idx === currentChapter ? 'active' : ''}`}
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 // Se o capítulo não tem áudio, gera sob demanda
                                                 if (!chapter.audioUrl && onGenerateChapterAudio) {
-                                                    onGenerateChapterAudio({
-                                                        number: chapter.number,
-                                                        title: chapter.title,
-                                                        content: summary.substring(chapter.startPos, chapter.endPos),
-                                                        startPos: chapter.startPos,
-                                                        endPos: chapter.endPos
-                                                    }).then(() => {
+                                                    setIsGeneratingAudio(true)
+                                                    if (showToast) {
+                                                        showToast(`Gerando áudio do capítulo ${chapter.number}...`, 'info', true)
+                                                    }
+                                                    
+                                                    try {
+                                                        await onGenerateChapterAudio({
+                                                            number: chapter.number,
+                                                            title: chapter.title,
+                                                            content: summary.substring(chapter.startPos, chapter.endPos),
+                                                            startPos: chapter.startPos,
+                                                            endPos: chapter.endPos
+                                                        })
+                                                        
+                                                        if (showToast) {
+                                                            showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
+                                                        }
                                                         setCurrentChapter(idx)
-                                                    })
+                                                    } catch (error) {
+                                                        if (showToast) {
+                                                            showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
+                                                        }
+                                                    } finally {
+                                                        setIsGeneratingAudio(false)
+                                                    }
                                                 } else {
                                                     setCurrentChapter(idx)
                                                 }
                                             }}
+                                            disabled={isGeneratingAudio}
                                         >
                                             {chapter.number}
                                         </button>
