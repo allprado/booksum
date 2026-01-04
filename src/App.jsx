@@ -454,6 +454,19 @@ Gere o resumo final em português brasileiro:`
         setSummary(cleanedSummary)
         setView('summary')
         showToast('Conteúdo gerado com sucesso!', 'success')
+        
+        // Gerar automaticamente áudio do primeiro capítulo
+        setLoading(true)
+        showToast('Gerando áudio do primeiro capítulo...', 'info')
+        
+        // Usar voz feminina padrão e velocidade 1x
+        setSelectedVoice('pt-BR-FranciscaNeural')
+        setSpeechRate('1.0')
+        
+        // Chamar geração de áudio após um pequeno delay para garantir que o summary foi atualizado
+        setTimeout(() => {
+          handleGenerateAudio(cleanedSummary)
+        }, 500)
       } else {
         throw new Error('Nenhum conteúdo foi gerado.')
       }
@@ -469,10 +482,10 @@ Gere o resumo final em português brasileiro:`
     }
   }
 
-  const handleGenerateAudio = async () => {
-    if (!summary) return
+  const handleGenerateChapterAudio = async (chapterData) => {
+    // Gera áudio para um capítulo específico sob demanda
+    if (!chapterData || !chapterData.content) return
 
-    setLoading(true)
     try {
       // Verificar credenciais da Azure
       const apiKey = import.meta.env.VITE_AZURE_SPEECH_KEY
@@ -482,7 +495,150 @@ Gere o resumo final em português brasileiro:`
         throw new Error('Configure a Key e Region do Azure Speech no arquivo .env')
       }
 
-      showToast('Autenticando com Azure...', 'info')
+      // 1. Obter Token de Acesso
+      const tokenResponse = await fetch(
+        `https://${region}.api.cognitive.microsoft.com/sts/v1.0/issueToken`,
+        {
+          method: 'POST',
+          headers: {
+            'Ocp-Apim-Subscription-Key': apiKey
+          }
+        }
+      )
+
+      if (!tokenResponse.ok) {
+        throw new Error(`Erro na autenticação Azure: ${tokenResponse.statusText}`)
+      }
+
+      const accessToken = await tokenResponse.text()
+
+      // 2. Preparar conteúdo do capítulo
+      const cleanText = chapterData.content
+        .replace(/#{1,6}\s/g, '')
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '')
+        .replace(/`/g, '')
+        .replace(/\n\n+/g, '\n')
+        .trim()
+
+      const maxChunkSize = 3000
+      const chunks = []
+      let currentChunk = ''
+
+      const sentences = cleanText.split(/(?<=[.!?])\s+/)
+      for (const sentence of sentences) {
+        if ((currentChunk + sentence).length > maxChunkSize) {
+          if (currentChunk) chunks.push(currentChunk.trim())
+          currentChunk = sentence
+        } else {
+          currentChunk += (currentChunk ? ' ' : '') + sentence
+        }
+      }
+      if (currentChunk) chunks.push(currentChunk.trim())
+
+      // 3. Gerar áudio para cada chunk
+      const audioBuffers = []
+      for (let j = 0; j < chunks.length; j++) {
+        const chunkText = chunks[j]
+        const voiceConfig = availableVoices.find(v => v.id === selectedVoice) || availableVoices[0]
+
+        const ssml = `
+          <speak version='1.0' xml:lang='pt-BR'>
+            <voice xml:lang='pt-BR' xml:gender='${voiceConfig.gender}' name='${selectedVoice}'>
+              <prosody rate='${selectedVoice}'>
+                ${chunkText}
+              </prosody>
+            </voice>
+          </speak>`
+
+        const response = await fetch(
+          `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/ssml+xml',
+              'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
+              'User-Agent': 'BookSum'
+            },
+            body: ssml
+          }
+        )
+
+        if (!response.ok) {
+          console.error('Erro Azure:', await response.text())
+          throw new Error(`Erro na API Azure TTS: ${response.status}`)
+        }
+
+        const arrayBuffer = await response.arrayBuffer()
+        audioBuffers.push(new Uint8Array(arrayBuffer))
+      }
+
+      // 4. Concatenar buffers
+      const totalLength = audioBuffers.reduce((acc, buf) => acc + buf.length, 0)
+      const combinedBuffer = new Uint8Array(totalLength)
+      let offset = 0
+      for (const buffer of audioBuffers) {
+        combinedBuffer.set(buffer, offset)
+        offset += buffer.length
+      }
+
+      const audioBlob = new Blob([combinedBuffer], { type: 'audio/mpeg' })
+      const audioUrl = URL.createObjectURL(audioBlob)
+
+      // 5. Atualizar estado com novo capítulo gerado
+      const updatedChapter = {
+        number: chapterData.number,
+        title: chapterData.title,
+        audioUrl: audioUrl,
+        startPos: chapterData.startPos,
+        endPos: chapterData.endPos
+      }
+
+      setAudioChapters(prev => {
+        const newChapters = [...prev]
+        const index = newChapters.findIndex(ch => ch.number === chapterData.number)
+        if (index >= 0) {
+          newChapters[index] = updatedChapter
+        } else {
+          newChapters.push(updatedChapter)
+        }
+        return newChapters
+      })
+
+      // Remove do pendentes
+      setPendingChapters(prev => prev.filter(ch => ch.number !== chapterData.number))
+
+      return audioUrl
+    } catch (error) {
+      console.error('Erro ao gerar áudio do capítulo:', error)
+      showToast(`Erro ao gerar áudio do capítulo ${chapterData.number}`, 'error')
+      return null
+    }
+  }
+
+  const handleGenerateAudio = async (summaryText = null) => {
+    const textToUse = summaryText || summary
+    if (!textToUse) return
+
+    // Se foi chamado automaticamente, não precisamos mostrar "loading" visual
+    const wasAutomatic = summaryText !== null
+    if (!wasAutomatic) {
+      setLoading(true)
+    }
+    
+    try {
+      // Verificar credenciais da Azure
+      const apiKey = import.meta.env.VITE_AZURE_SPEECH_KEY
+      const region = import.meta.env.VITE_AZURE_SPEECH_REGION
+
+      if (!apiKey || apiKey === 'sua_chave_azure_aqui' || !region) {
+        throw new Error('Configure a Key e Region do Azure Speech no arquivo .env')
+      }
+
+      if (!wasAutomatic) {
+        showToast('Autenticando com Azure...', 'info')
+      }
 
       // 1. Obter Token de Acesso
       const tokenResponse = await fetch(
@@ -503,22 +659,24 @@ Gere o resumo final em português brasileiro:`
 
       // 2. Extrair capítulos do resumo
       const chapterRegex = /\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi
-      const matches = [...summary.matchAll(chapterRegex)]
+      const matches = [...textToUse.matchAll(chapterRegex)]
       
       let chaptersToGenerate = []
       
       if (matches.length > 0) {
         // Tem capítulos definidos - gera áudio APENAS para o PRIMEIRO capítulo
-        showToast(`${matches.length} capítulos detectados. Gerando áudio do primeiro capítulo...`, 'info')
+        if (!wasAutomatic) {
+          showToast(`${matches.length} capítulos detectados. Gerando áudio do primeiro capítulo...`, 'info')
+        }
         
         // Pega apenas o primeiro capítulo
         const match = matches[0]
         const chapterNum = parseInt(match[1])
         const chapterTitle = match[3]?.trim().replace(/\*+/g, '') || `Capítulo ${chapterNum}`
         const startPos = match.index
-        const endPos = matches.length > 1 ? matches[1].index : summary.length
+        const endPos = matches.length > 1 ? matches[1].index : textToUse.length
         
-        const chapterContent = summary.substring(startPos, endPos)
+        const chapterContent = textToUse.substring(startPos, endPos)
         
         chaptersToGenerate.push({
           number: chapterNum,
@@ -529,13 +687,15 @@ Gere o resumo final em português brasileiro:`
         })
       } else {
         // Não tem capítulos - gera um único áudio completo
-        showToast('Nenhum capítulo detectado. Gerando áudio completo...', 'info')
+        if (!wasAutomatic) {
+          showToast('Nenhum capítulo detectado. Gerando áudio completo...', 'info')
+        }
         chaptersToGenerate.push({
           number: 1,
           title: 'Resumo Completo',
-          content: summary,
+          content: textToUse,
           startPos: 0,
-          endPos: summary.length
+          endPos: textToUse.length
         })
       }
 
@@ -641,8 +801,8 @@ Gere o resumo final em português brasileiro:`
           const chapterNum = parseInt(match[1])
           const chapterTitle = match[3]?.trim().replace(/\*+/g, '') || `Capítulo ${chapterNum}`
           const startPos = match.index
-          const endPos = idx < matches.length - 2 ? matches[idx + 2].index : summary.length
-          const chapterContent = summary.substring(startPos, endPos)
+          const endPos = idx < matches.length - 2 ? matches[idx + 2].index : textToUse.length
+          const chapterContent = textToUse.substring(startPos, endPos)
           
           return {
             number: chapterNum,
@@ -749,6 +909,7 @@ Gere o resumo final em português brasileiro:`
             audioUrl={audioUrl}
             audioChapters={audioChapters}
             onGenerateAudio={handleGenerateAudio}
+            onGenerateChapterAudio={handleGenerateChapterAudio}
             loading={loading}
             selectedVoice={selectedVoice}
             onVoiceChange={setSelectedVoice}

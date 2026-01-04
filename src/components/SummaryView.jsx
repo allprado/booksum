@@ -9,6 +9,7 @@ function SummaryView({
     audioUrl,
     audioChapters,
     onGenerateAudio,
+    onGenerateChapterAudio,
     loading,
     selectedVoice,
     onVoiceChange,
@@ -29,6 +30,7 @@ function SummaryView({
                 summary={summary}
                 audioUrl={audioUrl}
                 audioChapters={audioChapters}
+                onGenerateChapterAudio={onGenerateChapterAudio}
                 onClose={() => setShowReadingMode(false)}
             />
         )
@@ -117,93 +119,7 @@ function SummaryView({
 
             {activeTab === 'audio' && (
                 <div className="audio-content">
-                    {audioUrl ? (
-                        <AudioPlayer audioUrl={audioUrl} audioChapters={audioChapters} book={book} />
-                    ) : (
-                        <div className="audio-generate">
-                            <div className="audio-icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                                    <line x1="12" y1="19" x2="12" y2="23" />
-                                    <line x1="8" y1="23" x2="16" y2="23" />
-                                </svg>
-                            </div>
-
-                            <h3>Converter para Áudio</h3>
-                            <p>Ouça o resumo com voz natural gerada por IA</p>
-
-                            <div className="audio-features">
-                                <div className="feature">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                                    </svg>
-                                    <span>Voz natural e fluente</span>
-                                </div>
-                                <div className="feature">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                                    </svg>
-                                    <span>~20 minutos de áudio</span>
-                                </div>
-                                <div className="feature">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                                    </svg>
-                                    <span>Português brasileiro</span>
-                                </div>
-                            </div>
-
-                            <div className="audio-settings" style={{ marginBottom: '1.5rem', display: 'grid', gap: '1rem', textAlign: 'left' }}>
-                                <div className="control-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Voz do Narrador</label>
-                                    <select
-                                        value={selectedVoice}
-                                        onChange={(e) => onVoiceChange(e.target.value)}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', cursor: 'pointer' }}
-                                    >
-                                        {availableVoices?.map(voice => (
-                                            <option key={voice.id} value={voice.id} style={{ background: '#1a1a1a' }}>{voice.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="control-group">
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Velocidade da Fala</label>
-                                    <select
-                                        value={speechRate}
-                                        onChange={(e) => onRateChange(e.target.value)}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', cursor: 'pointer' }}
-                                    >
-                                        <option value="0.75" style={{ background: '#1a1a1a' }}>0.75x (Lento)</option>
-                                        <option value="1.0" style={{ background: '#1a1a1a' }}>1.0x (Normal)</option>
-                                        <option value="1.25" style={{ background: '#1a1a1a' }}>1.25x (Rápido)</option>
-                                        <option value="1.5" style={{ background: '#1a1a1a' }}>1.5x (Muito Rápido)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <button
-                                className="btn btn-accent btn-lg w-full"
-                                onClick={onGenerateAudio}
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <>
-                                        <span className="btn-spinner"></span>
-                                        Gerando áudio...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <polygon points="5 3 19 12 5 21 5 3" />
-                                        </svg>
-                                        Gerar Áudio
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    )}
+                    <AudioPlayer audioUrl={audioUrl} audioChapters={audioChapters} book={book} />
                 </div>
             )}
         </div>

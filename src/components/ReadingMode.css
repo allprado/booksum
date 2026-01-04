@@ -236,13 +236,18 @@
     left: 0;
     right: 0;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-md);
-    padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom));
+    flex-direction: column;
     background: var(--reading-surface);
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(128, 128, 128, 0.2);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md);
 }
 
 .theme-switcher {
@@ -444,6 +449,174 @@
 .reading-control-btn.playing {
     background: rgba(var(--color-primary-rgb), 0.2);
     color: var(--color-primary);
+}
+
+/* Mini Player */
+.mini-player {
+    flex: 0 0 auto;
+    border-top: 1px solid rgba(128, 128, 128, 0.2);
+    background: var(--reading-surface);
+    transition: all var(--transition-normal);
+}
+
+.mini-player-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    background: transparent;
+    border: none;
+    color: var(--reading-text);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    font-size: 0.9rem;
+}
+
+.mini-player-toggle:hover {
+    background: rgba(128, 128, 128, 0.1);
+}
+
+.mini-player-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.mini-player.open {
+    padding: var(--space-md);
+}
+
+.mini-player-expanded {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.mini-player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.mini-player-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--reading-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mini-player-close {
+    background: transparent;
+    border: none;
+    color: var(--reading-text);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+}
+
+.mini-player-close:hover {
+    color: var(--reading-highlight);
+}
+
+.mini-player-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.mini-play-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: var(--reading-highlight);
+    border: none;
+    border-radius: 50%;
+    color: var(--reading-surface);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.mini-play-btn:hover {
+    transform: scale(1.1);
+}
+
+.mini-ctrl-btn {
+    background: transparent;
+    border: 1px solid rgba(128, 128, 128, 0.3);
+    color: var(--reading-text);
+    border-radius: var(--radius-md);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mini-ctrl-btn:hover:not(:disabled) {
+    background: rgba(128, 128, 128, 0.1);
+    border-color: var(--reading-highlight);
+}
+
+.mini-ctrl-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.mini-player-time {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--reading-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.mini-player-chapters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    justify-content: center;
+}
+
+.mini-chapter-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 var(--space-sm);
+    background: transparent;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--reading-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mini-chapter-btn:hover {
+    border-color: var(--reading-highlight);
+    color: var(--reading-text);
+}
+
+.mini-chapter-btn.active {
+    background: var(--reading-highlight);
+    border-color: var(--reading-highlight);
+    color: var(--reading-surface);
+}
+
+.footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md);
 }
 
 @keyframes slideInRight {

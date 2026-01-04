@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './ReadingMode.css'
 
-function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [] }) {
+function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio }) {
     const [fontSize, setFontSize] = useState(18)
     const [theme, setTheme] = useState('dark') // dark, light, sepia
     const [progress, setProgress] = useState(0)
@@ -9,6 +9,11 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [] }) {
     const [chapters, setChapters] = useState([])
     const [currentChapter, setCurrentChapter] = useState(0)
     const [audioPlayer, setAudioPlayer] = useState(null)
+    const [miniPlayerOpen, setMiniPlayerOpen] = useState(false)
+    const [isAudioPlaying, setIsAudioPlaying] = useState(false)
+    const [currentAudioTime, setCurrentAudioTime] = useState(0)
+    const [audioDuration, setAudioDuration] = useState(0)
+    const audioRef = useRef(null)
     const contentRef = useRef(null)
 
     // Extrai os capítulos do resumo
@@ -91,6 +96,85 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [] }) {
             return () => content.removeEventListener('scroll', handleScroll)
         }
     }, [chapters])
+
+    // Gerenciar áudio do miniplayer
+    useEffect(() => {
+        const audio = audioRef.current
+        if (!audio) return
+
+        const handleTimeUpdate = () => setCurrentAudioTime(audio.currentTime)
+        const handleLoadedMetadata = () => setAudioDuration(audio.duration)
+        const handleEnded = () => setIsAudioPlaying(false)
+
+        audio.addEventListener('timeupdate', handleTimeUpdate)
+        audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+        audio.addEventListener('ended', handleEnded)
+
+        return () => {
+            audio.removeEventListener('timeupdate', handleTimeUpdate)
+            audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+            audio.removeEventListener('ended', handleEnded)
+        }
+    }, [])
+
+    const toggleAudioPlay = () => {
+        if (!audioRef.current) return
+        
+        if (isAudioPlaying) {
+            audioRef.current.pause()
+        } else {
+            audioRef.current.play()
+        }
+        setIsAudioPlaying(!isAudioPlaying)
+    }
+
+    const goToNextAudioChapter = () => {
+        if (currentChapter < audioChapters.length - 1) {
+            const nextChapter = audioChapters[currentChapter + 1]
+            
+            // Se o próximo capítulo não tem áudio, gera sob demanda
+            if (!nextChapter.audioUrl && onGenerateChapterAudio) {
+                onGenerateChapterAudio({
+                    number: nextChapter.number,
+                    title: nextChapter.title,
+                    content: summary.substring(nextChapter.startPos, nextChapter.endPos),
+                    startPos: nextChapter.startPos,
+                    endPos: nextChapter.endPos
+                }).then(() => {
+                    setCurrentChapter(currentChapter + 1)
+                    setIsAudioPlaying(true)
+                })
+            } else {
+                setCurrentChapter(currentChapter + 1)
+                setIsAudioPlaying(true)
+            }
+        }
+    }
+
+    const goToPreviousAudioChapter = () => {
+        if (currentChapter > 0) {
+            const prevChapter = audioChapters[currentChapter - 1]
+            
+            // Se o capítulo anterior não tem áudio, gera sob demanda
+            if (!prevChapter.audioUrl && onGenerateChapterAudio) {
+                onGenerateChapterAudio({
+                    number: prevChapter.number,
+                    title: prevChapter.title,
+                    content: summary.substring(prevChapter.startPos, prevChapter.endPos),
+                    startPos: prevChapter.startPos,
+                    endPos: prevChapter.endPos
+                }).then(() => {
+                    setCurrentChapter(currentChapter - 1)
+                    setIsAudioPlaying(true)
+                })
+            } else {
+                setCurrentChapter(currentChapter - 1)
+                setIsAudioPlaying(true)
+            }
+        }
+    }
+
+    const currentAudioUrl = audioChapters[currentChapter]?.audioUrl
 
     const increaseFontSize = () => {
         setFontSize(prev => Math.min(28, prev + 2))
@@ -375,32 +459,130 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [] }) {
             </div>
 
             <footer className="reading-footer">
-                <div className="theme-switcher">
-                    <button
-                        className={`theme-btn ${theme === 'dark' ? 'active' : ''}`}
-                        onClick={() => setTheme('dark')}
-                        aria-label="Tema escuro"
-                    >
-                        <div className="theme-preview theme-preview-dark"></div>
-                    </button>
-                    <button
-                        className={`theme-btn ${theme === 'light' ? 'active' : ''}`}
-                        onClick={() => setTheme('light')}
-                        aria-label="Tema claro"
-                    >
-                        <div className="theme-preview theme-preview-light"></div>
-                    </button>
-                    <button
-                        className={`theme-btn ${theme === 'sepia' ? 'active' : ''}`}
-                        onClick={() => setTheme('sepia')}
-                        aria-label="Tema sépia"
-                    >
-                        <div className="theme-preview theme-preview-sepia"></div>
-                    </button>
-                </div>
+                {audioChapters && audioChapters.length > 0 && (
+                    <div className={`mini-player ${miniPlayerOpen ? 'open' : ''}`}>
+                        <audio
+                            ref={audioRef}
+                            src={currentAudioUrl}
+                            preload="metadata"
+                            onPlay={() => setIsAudioPlaying(true)}
+                            onPause={() => setIsAudioPlaying(false)}
+                        />
+                        
+                        {miniPlayerOpen ? (
+                            <div className="mini-player-expanded">
+                                <div className="mini-player-header">
+                                    <span className="mini-player-title">
+                                        Cap. {audioChapters[currentChapter]?.number}: {audioChapters[currentChapter]?.title}
+                                    </span>
+                                    <button
+                                        className="mini-player-close"
+                                        onClick={() => setMiniPlayerOpen(false)}
+                                        aria-label="Fechar player"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
 
-                <div className="reading-progress-text">
-                    {Math.round(progress)}% lido
+                                <div className="mini-player-controls">
+                                    <button
+                                        className="mini-ctrl-btn"
+                                        onClick={goToPreviousAudioChapter}
+                                        disabled={currentChapter === 0}
+                                        title="Capítulo anterior"
+                                    >
+                                        ⏮
+                                    </button>
+                                    
+                                    <button
+                                        className="mini-play-btn"
+                                        onClick={toggleAudioPlay}
+                                    >
+                                        {isAudioPlaying ? '⏸' : '▶'}
+                                    </button>
+
+                                    <button
+                                        className="mini-ctrl-btn"
+                                        onClick={goToNextAudioChapter}
+                                        disabled={currentChapter === audioChapters.length - 1}
+                                        title="Próximo capítulo"
+                                    >
+                                        ⏭
+                                    </button>
+                                </div>
+
+                                <div className="mini-player-time">
+                                    {Math.floor(currentAudioTime / 60)}:{String(Math.floor(currentAudioTime % 60)).padStart(2, '0')} / {Math.floor(audioDuration / 60)}:{String(Math.floor(audioDuration % 60)).padStart(2, '0')}
+                                </div>
+
+                                <div className="mini-player-chapters">
+                                    {audioChapters.map((chapter, idx) => (
+                                        <button
+                                            key={idx}
+                                            className={`mini-chapter-btn ${idx === currentChapter ? 'active' : ''}`}
+                                            onClick={() => {
+                                                // Se o capítulo não tem áudio, gera sob demanda
+                                                if (!chapter.audioUrl && onGenerateChapterAudio) {
+                                                    onGenerateChapterAudio({
+                                                        number: chapter.number,
+                                                        title: chapter.title,
+                                                        content: summary.substring(chapter.startPos, chapter.endPos),
+                                                        startPos: chapter.startPos,
+                                                        endPos: chapter.endPos
+                                                    }).then(() => {
+                                                        setCurrentChapter(idx)
+                                                    })
+                                                } else {
+                                                    setCurrentChapter(idx)
+                                                }
+                                            }}
+                                        >
+                                            {chapter.number}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                className="mini-player-toggle"
+                                onClick={() => setMiniPlayerOpen(true)}
+                            >
+                                <span className="mini-player-status">
+                                    🎧 Cap. {audioChapters[currentChapter]?.number} - {isAudioPlaying ? '▶' : '⏸'}
+                                </span>
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                <div className="footer-content">
+                    <div className="theme-switcher">
+                        <button
+                            className={`theme-btn ${theme === 'dark' ? 'active' : ''}`}
+                            onClick={() => setTheme('dark')}
+                            aria-label="Tema escuro"
+                        >
+                            <div className="theme-preview theme-preview-dark"></div>
+                        </button>
+                        <button
+                            className={`theme-btn ${theme === 'light' ? 'active' : ''}`}
+                            onClick={() => setTheme('light')}
+                            aria-label="Tema claro"
+                        >
+                            <div className="theme-preview theme-preview-light"></div>
+                        </button>
+                        <button
+                            className={`theme-btn ${theme === 'sepia' ? 'active' : ''}`}
+                            onClick={() => setTheme('sepia')}
+                            aria-label="Tema sépia"
+                        >
+                            <div className="theme-preview theme-preview-sepia"></div>
+                        </button>
+                    </div>
+
+                    <div className="reading-progress-text">
+                        {Math.round(progress)}% lido
+                    </div>
                 </div>
             </footer>
         </div>
