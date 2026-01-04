@@ -62,15 +62,22 @@ function App({ isAdminMode = false }) {
 
       if (effectiveSource === 'google') {
         const startIndex = (pageNum - 1) * 40
-        const googleQuery = `${encodeURIComponent(query)}+OR+inauthor:${encodeURIComponent(query)}`
+        // Usar busca com aspas para melhor precisão em buscas por título
+        // Isso prioriza resultados que contêm exatamente o termo buscado
+        const googleQuery = `"${encodeURIComponent(query)}"`
         const response = await fetch(
-          `https://www.googleapis.com/books/v1/volumes?q=${googleQuery}&langRestrict=pt&maxResults=40&startIndex=${startIndex}&printType=books`
+          `https://www.googleapis.com/books/v1/volumes?q=${googleQuery}&maxResults=40&startIndex=${startIndex}&printType=books`
         )
         const data = await response.json()
 
         if (data.items && data.items.length > 0) {
           const filtered = data.items
-            .filter(item => item.volumeInfo.industryIdentifiers && item.volumeInfo.industryIdentifiers.length > 0 && item.volumeInfo.language?.startsWith('pt'))
+            .filter(item => item.volumeInfo.industryIdentifiers && item.volumeInfo.industryIdentifiers.length > 0 && (
+              item.volumeInfo.language?.startsWith('pt') || // Português (pt, pt-BR, pt-PT)
+              item.volumeInfo.language === 'gl' || // Galego (língua muito próxima ao português)
+              item.volumeInfo.language === 'es' || // Espanhol (muitas edições compartilhadas)
+              item.volumeInfo.language === 'ca'    // Catalão (também ibérico)
+            ))
             .map(item => ({
               id: item.id,
               title: item.volumeInfo.title || 'Título não disponível',
