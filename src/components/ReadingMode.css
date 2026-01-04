@@ -458,6 +458,9 @@
     background: var(--reading-surface);
     transition: all var(--transition-normal);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .mini-player-toggle {
@@ -498,6 +501,14 @@
     flex-direction: column;
     gap: var(--space-lg);
     animation: slideUpSmooth 0.3s ease;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 @keyframes slideUpSmooth {
@@ -566,19 +577,19 @@
     justify-content: center;
     width: 56px;
     height: 56px;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    background: linear-gradient(135deg, var(--reading-highlight), var(--color-primary));
     border: none;
     border-radius: 50%;
     color: white;
     font-size: 1.4rem;
     cursor: pointer;
     transition: all var(--transition-fast);
-    box-shadow: 0 8px 25px var(--color-primary-glow);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .mini-play-btn:hover:not(:disabled) {
     transform: scale(1.08);
-    box-shadow: 0 12px 35px var(--color-primary-glow);
+    box-shadow: 0 6px 16px rgba(var(--color-primary-rgb), 0.4);
 }
 
 .mini-play-btn:active:not(:disabled) {
@@ -591,26 +602,26 @@
 }
 
 .mini-ctrl-btn {
+    background: rgba(128, 128, 128, 0.1);
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    color: var(--reading-text);
+    border-radius: var(--radius-lg);
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-full);
-    color: var(--reading-text);
     font-size: 1.1rem;
     cursor: pointer;
     transition: all var(--transition-fast);
+    backdrop-filter: blur(10px);
 }
 
 .mini-ctrl-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary);
-    border-color: var(--color-primary-light);
+    background: rgba(var(--color-primary-rgb), 0.15);
+    border-color: var(--reading-highlight);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .mini-ctrl-btn:active:not(:disabled) {
@@ -660,8 +671,8 @@
     min-width: 40px;
     height: 40px;
     padding: 0 var(--space-sm);
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: rgba(128, 128, 128, 0.08);
+    border: 1px solid rgba(128, 128, 128, 0.15);
     border-radius: var(--radius-md);
     color: var(--reading-text);
     font-size: 0.8rem;
@@ -685,11 +696,10 @@
 }
 
 .mini-chapter-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--color-primary-light);
-    color: var(--color-primary-light);
+    border-color: var(--reading-highlight);
+    color: var(--reading-highlight);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
+    box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.2);
 }
 
 .mini-chapter-btn:hover:not(:disabled)::before {
@@ -697,8 +707,8 @@
 }
 
 .mini-chapter-btn.active {
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    border-color: var(--color-primary);
+    background: linear-gradient(135deg, var(--reading-highlight), var(--color-primary));
+    border-color: var(--reading-highlight);
     color: white;
     box-shadow: 0 2px 12px rgba(var(--color-primary-rgb), 0.3);
     transform: scale(1.05);

@@ -24,6 +24,22 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
         const audio = audioRef.current
         if (!audio) return
 
+        if (isPlaying) {
+            const playPromise = audio.play()
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("Audio play prevented:", error)
+                })
+            }
+        } else {
+            audio.pause()
+        }
+    }, [isPlaying, currentAudioUrl])
+
+    useEffect(() => {
+        const audio = audioRef.current
+        if (!audio) return
+
         const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
         const handleLoadedMetadata = () => setDuration(audio.duration)
         const handleEnded = () => {
@@ -45,20 +61,6 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
             audio.removeEventListener('ended', handleEnded)
         }
     }, [hasChapters, currentChapterIndex, audioChapters.length])
-
-    // Efeito para tocar automaticamente quando o áudio muda e isPlaying está true
-    useEffect(() => {
-        const audio = audioRef.current
-        if (!audio || !currentAudioUrl) return
-
-        if (isPlaying) {
-            audio.load()
-            audio.play().catch(err => {
-                console.error('Erro ao reproduzir áudio:', err)
-                setIsPlaying(false)
-            })
-        }
-    }, [currentAudioUrl, isPlaying])
 
     const goToChapter = (index) => {
         if (index >= 0 && index < audioChapters.length) {
@@ -91,12 +93,7 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
                     if (showToast) {
                         showToast(`Áudio do capítulo ${prevChapter.number} gerado!`, 'success')
                     }
-                    
-                    // Aguarda um pequeno delay para garantir que o estado foi atualizado
-                    await new Promise(resolve => setTimeout(resolve, 100))
-                    setCurrentChapterIndex(currentChapterIndex - 1)
-                    setCurrentTime(0)
-                    setIsPlaying(true)
+                    goToChapter(currentChapterIndex - 1)
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${prevChapter.number}`, 'error')
@@ -133,12 +130,7 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
                     if (showToast) {
                         showToast(`Áudio do capítulo ${nextChapter.number} gerado!`, 'success')
                     }
-                    
-                    // Aguarda um pequeno delay para garantir que o estado foi atualizado
-                    await new Promise(resolve => setTimeout(resolve, 100))
-                    setCurrentChapterIndex(currentChapterIndex + 1)
-                    setCurrentTime(0)
-                    setIsPlaying(true)
+                    goToChapter(currentChapterIndex + 1)
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${nextChapter.number}`, 'error')

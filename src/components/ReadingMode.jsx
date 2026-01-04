@@ -105,6 +105,22 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         const audio = audioRef.current
         if (!audio) return
 
+        if (isAudioPlaying) {
+            const playPromise = audio.play()
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("Audio play prevented:", error)
+                })
+            }
+        } else {
+            audio.pause()
+        }
+    }, [isAudioPlaying, currentAudioUrl])
+
+    useEffect(() => {
+        const audio = audioRef.current
+        if (!audio) return
+
         const handleTimeUpdate = () => setCurrentAudioTime(audio.currentTime)
         const handleLoadedMetadata = () => setAudioDuration(audio.duration)
         const handleEnded = () => setIsAudioPlaying(false)
@@ -119,20 +135,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             audio.removeEventListener('ended', handleEnded)
         }
     }, [])
-
-    // Efeito para tocar automaticamente quando o áudio muda e isAudioPlaying está true
-    useEffect(() => {
-        const audio = audioRef.current
-        if (!audio || !currentAudioUrl) return
-
-        if (isAudioPlaying) {
-            audio.load()
-            audio.play().catch(err => {
-                console.error('Erro ao reproduzir áudio:', err)
-                setIsAudioPlaying(false)
-            })
-        }
-    }, [currentAudioUrl, isAudioPlaying])
 
     const toggleAudioPlay = () => {
         if (!audioRef.current) return
@@ -168,16 +170,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     if (showToast) {
                         showToast(`Áudio do capítulo ${nextChapter.number} gerado!`, 'success')
                     }
-                    
-                    // Aguarda um pequeno delay para garantir que o estado foi atualizado
-                    await new Promise(resolve => setTimeout(resolve, 100))
                     setCurrentChapter(currentChapter + 1)
-                    
-                    // Toca automaticamente
-                    if (audioRef.current) {
-                        audioRef.current.play()
-                        setIsAudioPlaying(true)
-                    }
+                    setIsAudioPlaying(true)
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${nextChapter.number}`, 'error')
@@ -187,12 +181,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 }
             } else {
                 setCurrentChapter(currentChapter + 1)
-                
-                // Toca automaticamente
-                if (audioRef.current) {
-                    audioRef.current.play()
-                    setIsAudioPlaying(true)
-                }
+                setIsAudioPlaying(true)
             }
         }
     }
@@ -220,16 +209,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     if (showToast) {
                         showToast(`Áudio do capítulo ${prevChapter.number} gerado!`, 'success')
                     }
-                    
-                    // Aguarda um pequeno delay para garantir que o estado foi atualizado
-                    await new Promise(resolve => setTimeout(resolve, 100))
                     setCurrentChapter(currentChapter - 1)
-                    
-                    // Toca automaticamente
-                    if (audioRef.current) {
-                        audioRef.current.play()
-                        setIsAudioPlaying(true)
-                    }
+                    setIsAudioPlaying(true)
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${prevChapter.number}`, 'error')
@@ -239,12 +220,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 }
             } else {
                 setCurrentChapter(currentChapter - 1)
-                
-                // Toca automaticamente
-                if (audioRef.current) {
-                    audioRef.current.play()
-                    setIsAudioPlaying(true)
-                }
+                setIsAudioPlaying(true)
             }
         }
     }
@@ -483,6 +459,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                     className={`reading-index-item ${index === currentChapter ? 'current' : ''}`}
                                     onClick={async () => {
                                         scrollToChapter(index)
+                                        setCurrentChapter(index)
                                         
                                         // Se o capítulo não tem áudio e podemos gerar, gera sob demanda
                                         if (!chapter.audioUrl && onGenerateChapterAudio && chapter.startPos !== undefined) {
@@ -506,16 +483,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                 if (showToast) {
                                                     showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
                                                 }
-                                                
-                                                // Aguarda um pequeno delay para garantir que o estado foi atualizado
-                                                await new Promise(resolve => setTimeout(resolve, 100))
-                                                setCurrentChapter(index)
-                                                
-                                                // Toca automaticamente
                                                 setIsAudioPlaying(true)
-                                                if (audioRef.current) {
-                                                    audioRef.current.play()
-                                                }
                                             } catch (error) {
                                                 if (showToast) {
                                                     showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
@@ -523,6 +491,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                             } finally {
                                                 setIsGeneratingAudio(false)
                                             }
+                                        } else {
+                                            setIsAudioPlaying(true)
                                         }
                                     }}
                                 >
@@ -609,7 +579,9 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         disabled={currentChapter === 0 || isGeneratingAudio}
                                         title="Capítulo anterior"
                                     >
-                                        ⏮
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <polyline points="15 18 9 12 15 6" />
+                                        </svg>
                                     </button>
                                     
                                     <button
@@ -617,7 +589,20 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         onClick={toggleAudioPlay}
                                         disabled={isGeneratingAudio}
                                     >
-                                        {isGeneratingAudio ? '⌛' : (isAudioPlaying ? '⏸' : '▶')}
+                                        {isGeneratingAudio ? (
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{animation: 'spin 1s linear infinite'}}>
+                                                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                            </svg>
+                                        ) : (isAudioPlaying ? (
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                                <rect x="6" y="4" width="4" height="16" rx="1" />
+                                                <rect x="14" y="4" width="4" height="16" rx="1" />
+                                            </svg>
+                                        ) : (
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                                <polygon points="5 3 19 12 5 21 5 3" />
+                                            </svg>
+                                        ))}
                                     </button>
 
                                     <button
@@ -626,7 +611,9 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         disabled={isGeneratingAudio}
                                         title="Próximo capítulo"
                                     >
-                                        ⏭
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <polyline points="9 18 15 12 9 6" />
+                                        </svg>
                                     </button>
                                 </div>
 
@@ -659,16 +646,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                         if (showToast) {
                                                             showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
                                                         }
-                                                        
-                                                        // Aguarda um pequeno delay para garantir que o estado foi atualizado
-                                                        await new Promise(resolve => setTimeout(resolve, 100))
                                                         setCurrentChapter(idx)
-                                                        
-                                                        // Toca automaticamente
-                                                        setIsAudioPlaying(true)
-                                                        if (audioRef.current) {
-                                                            audioRef.current.play()
-                                                        }
                                                     } catch (error) {
                                                         if (showToast) {
                                                             showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
@@ -678,12 +656,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                     }
                                                 } else {
                                                     setCurrentChapter(idx)
-                                                    
-                                                    // Toca automaticamente
-                                                    setIsAudioPlaying(true)
-                                                    if (audioRef.current) {
-                                                        audioRef.current.play()
-                                                    }
                                                 }
                                             }}
                                             disabled={isGeneratingAudio}
