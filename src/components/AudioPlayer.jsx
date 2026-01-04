@@ -4,6 +4,8 @@ import './AudioPlayer.css'
 function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudio, summary, showToast }) {
     const audioRef = useRef(null)
     const progressRef = useRef(null)
+    const shouldPlayAfterLoadRef = useRef(false)
+    const pendingChapterIndexRef = useRef(null)
 
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentTime, setCurrentTime] = useState(0)
@@ -20,12 +22,45 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
     const currentAudioUrl = hasChapters ? audioChapters[currentChapterIndex]?.audioUrl : audioUrl
     const currentChapter = hasChapters ? audioChapters[currentChapterIndex] : null
 
+    // Observar mudanças nos audioChapters para detectar quando um capítulo pendente fica disponível
+    useEffect(() => {
+        if (pendingChapterIndexRef.current !== null) {
+            const pendingIndex = pendingChapterIndexRef.current
+            const chapter = audioChapters[pendingIndex]
+            
+            if (chapter && chapter.audioUrl) {
+                // O capítulo agora tem áudio, podemos tocar
+                pendingChapterIndexRef.current = null
+                shouldPlayAfterLoadRef.current = true
+                setCurrentChapterIndex(pendingIndex)
+                setCurrentTime(0)
+                
+                // Carrega o novo áudio
+                if (audioRef.current) {
+                    audioRef.current.load()
+                }
+            }
+        }
+    }, [audioChapters])
+
     useEffect(() => {
         const audio = audioRef.current
         if (!audio) return
 
         const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
-        const handleLoadedMetadata = () => setDuration(audio.duration)
+        const handleLoadedMetadata = () => {
+            setDuration(audio.duration)
+            // Se devemos tocar após carregar, inicia a reprodução
+            if (shouldPlayAfterLoadRef.current) {
+                shouldPlayAfterLoadRef.current = false
+                audio.play().then(() => {
+                    setIsPlaying(true)
+                }).catch(err => {
+                    console.error('Erro ao reproduzir áudio:', err)
+                    setIsPlaying(false)
+                })
+            }
+        }
         const handleEnded = () => {
             // Quando um capítulo termina, avança automaticamente para o próximo
             if (hasChapters && currentChapterIndex < audioChapters.length - 1) {
@@ -46,20 +81,6 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
         }
     }, [hasChapters, currentChapterIndex, audioChapters.length])
 
-    // Sincroniza a reprodução quando o capítulo muda ou quando isPlaying muda
-    useEffect(() => {
-        const audio = audioRef.current
-        if (!audio || !currentAudioUrl) return
-        
-        if (isPlaying) {
-            audio.load()
-            audio.play().catch(err => {
-                console.error('Erro ao reproduzir áudio:', err)
-                setIsPlaying(false)
-            })
-        }
-    }, [currentChapterIndex, currentAudioUrl])
-
     const goToChapter = async (index, shouldPlay = true) => {
         if (index >= 0 && index < audioChapters.length) {
             const chapter = audioChapters[index]
@@ -67,6 +88,8 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
             // Se o capítulo não tem áudio, gera sob demanda
             if (!chapter.audioUrl && onGenerateChapterAudio && summary) {
                 setIsGeneratingAudio(true)
+                pendingChapterIndexRef.current = index  // Marca qual capítulo estamos esperando
+                
                 if (showToast) {
                     showToast(`Gerando áudio do capítulo ${chapter.number}...`, 'info', true)
                 }
@@ -83,21 +106,29 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
                     if (showToast) {
                         showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
                     }
+                    // O useEffect vai detectar quando audioChapters for atualizado
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
                     }
-                    setIsGeneratingAudio(false)
-                    return
+                    pendingChapterIndexRef.current = null
                 } finally {
                     setIsGeneratingAudio(false)
                 }
+                return  // Não muda o capítulo aqui, espera o useEffect
+            }
+            
+            // Capítulo já tem áudio, pode tocar diretamente
+            if (shouldPlay) {
+                shouldPlayAfterLoadRef.current = true
             }
             
             setCurrentChapterIndex(index)
             setCurrentTime(0)
-            if (shouldPlay) {
-                setIsPlaying(true)
+            
+            // Carrega o novo áudio
+            if (audioRef.current) {
+                audioRef.current.load()
             }
         }
     }
