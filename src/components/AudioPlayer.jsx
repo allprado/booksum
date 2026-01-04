@@ -24,22 +24,6 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
         const audio = audioRef.current
         if (!audio) return
 
-        if (isPlaying) {
-            const playPromise = audio.play()
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.log("Audio play prevented:", error)
-                })
-            }
-        } else {
-            audio.pause()
-        }
-    }, [isPlaying, currentAudioUrl])
-
-    useEffect(() => {
-        const audio = audioRef.current
-        if (!audio) return
-
         const handleTimeUpdate = () => setCurrentTime(audio.currentTime)
         const handleLoadedMetadata = () => setDuration(audio.duration)
         const handleEnded = () => {
@@ -62,85 +46,71 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
         }
     }, [hasChapters, currentChapterIndex, audioChapters.length])
 
-    const goToChapter = (index) => {
+    // Sincroniza a reprodução quando o capítulo muda ou quando isPlaying muda
+    useEffect(() => {
+        const audio = audioRef.current
+        if (!audio || !currentAudioUrl) return
+        
+        if (isPlaying) {
+            audio.load()
+            audio.play().catch(err => {
+                console.error('Erro ao reproduzir áudio:', err)
+                setIsPlaying(false)
+            })
+        }
+    }, [currentChapterIndex, currentAudioUrl])
+
+    const goToChapter = async (index, shouldPlay = true) => {
         if (index >= 0 && index < audioChapters.length) {
+            const chapter = audioChapters[index]
+            
+            // Se o capítulo não tem áudio, gera sob demanda
+            if (!chapter.audioUrl && onGenerateChapterAudio && summary) {
+                setIsGeneratingAudio(true)
+                if (showToast) {
+                    showToast(`Gerando áudio do capítulo ${chapter.number}...`, 'info', true)
+                }
+                
+                try {
+                    await onGenerateChapterAudio({
+                        number: chapter.number,
+                        title: chapter.title,
+                        content: summary.substring(chapter.startPos, chapter.endPos),
+                        startPos: chapter.startPos,
+                        endPos: chapter.endPos
+                    })
+                    
+                    if (showToast) {
+                        showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
+                    }
+                } catch (error) {
+                    if (showToast) {
+                        showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
+                    }
+                    setIsGeneratingAudio(false)
+                    return
+                } finally {
+                    setIsGeneratingAudio(false)
+                }
+            }
+            
             setCurrentChapterIndex(index)
             setCurrentTime(0)
-            setIsPlaying(true)
+            if (shouldPlay) {
+                setIsPlaying(true)
+            }
         }
     }
 
     const goToPreviousChapter = async () => {
         if (currentChapterIndex > 0) {
-            const prevChapter = audioChapters[currentChapterIndex - 1]
-            
-            // Se o capítulo anterior não tem áudio, gera sob demanda
-            if (!prevChapter.audioUrl && onGenerateChapterAudio && summary) {
-                setIsGeneratingAudio(true)
-                if (showToast) {
-                    showToast(`Gerando áudio do capítulo ${prevChapter.number}...`, 'info', true)
-                }
-                
-                try {
-                    await onGenerateChapterAudio({
-                        number: prevChapter.number,
-                        title: prevChapter.title,
-                        content: summary.substring(prevChapter.startPos, prevChapter.endPos),
-                        startPos: prevChapter.startPos,
-                        endPos: prevChapter.endPos
-                    })
-                    
-                    if (showToast) {
-                        showToast(`Áudio do capítulo ${prevChapter.number} gerado!`, 'success')
-                    }
-                    goToChapter(currentChapterIndex - 1)
-                } catch (error) {
-                    if (showToast) {
-                        showToast(`Erro ao gerar áudio do capítulo ${prevChapter.number}`, 'error')
-                    }
-                } finally {
-                    setIsGeneratingAudio(false)
-                }
-            } else {
-                goToChapter(currentChapterIndex - 1)
-            }
+            await goToChapter(currentChapterIndex - 1)
         }
     }
 
     const goToNextChapter = async () => {
         if (currentChapterIndex < audioChapters.length - 1) {
-            const nextChapter = audioChapters[currentChapterIndex + 1]
-            
-            // Se o próximo capítulo não tem áudio, gera sob demanda
-            if (!nextChapter.audioUrl && onGenerateChapterAudio && summary) {
-                setIsGeneratingAudio(true)
-                if (showToast) {
-                    showToast(`Gerando áudio do capítulo ${nextChapter.number}...`, 'info', true)
-                }
-                
-                try {
-                    await onGenerateChapterAudio({
-                        number: nextChapter.number,
-                        title: nextChapter.title,
-                        content: summary.substring(nextChapter.startPos, nextChapter.endPos),
-                        startPos: nextChapter.startPos,
-                        endPos: nextChapter.endPos
-                    })
-                    
-                    if (showToast) {
-                        showToast(`Áudio do capítulo ${nextChapter.number} gerado!`, 'success')
-                    }
-                    goToChapter(currentChapterIndex + 1)
-                } catch (error) {
-                    if (showToast) {
-                        showToast(`Erro ao gerar áudio do capítulo ${nextChapter.number}`, 'error')
-                    }
-                } finally {
-                    setIsGeneratingAudio(false)
-                }
-            } else {
-                goToChapter(currentChapterIndex + 1)
-            }
+            await goToChapter(currentChapterIndex + 1)
         }
     }
 
@@ -248,10 +218,11 @@ function AudioPlayer({ audioUrl, audioChapters = [], book, onGenerateChapterAudi
                                 <button
                                     key={index}
                                     className={`chapter-item ${index === currentChapterIndex ? 'active' : ''}`}
-                                    onClick={() => {
-                                        goToChapter(index)
+                                    onClick={async () => {
+                                        await goToChapter(index)
                                         setShowChapterIndex(false)
                                     }}
+                                    disabled={isGeneratingAudio}
                                 >
                                     <span className="chapter-num">{chapter.number}</span>
                                     <span className="chapter-name">{chapter.title}</span>

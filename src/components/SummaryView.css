@@ -1,7 +1,10 @@
 .summary-view {
     max-width: 480px;
+    width: 100%;
     margin: 0 auto;
     padding-bottom: var(--space-xl);
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 .summary-header {
@@ -173,7 +176,9 @@
     flex-direction: column;
     min-height: 400px;
     max-width: 100%;
+    width: 100%;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .audio-generate {

@@ -17,19 +17,25 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     const audioRef = useRef(null)
     const contentRef = useRef(null)
 
+    // Verificação de segurança para o summary
+    const safeSummary = summary || ''
+    const safeAudioChapters = audioChapters || []
+
     // Extrai os capítulos do resumo
     useEffect(() => {
+        if (!safeSummary) return
+        
         const extractChapters = () => {
             // Procura por padrões de capítulos: "**Capítulo X de Y**" ou "Capítulo X de Y"
             const chapterRegex = /\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi
-            const matches = [...summary.matchAll(chapterRegex)]
+            const matches = [...safeSummary.matchAll(chapterRegex)]
             
             if (matches.length > 0) {
                 const extractedChapters = matches.map((match, index) => {
                     const chapterNum = parseInt(match[1])
                     
                     // Procura se existe audioChapter correspondente
-                    const audioChapter = audioChapters.find(ac => ac.number === chapterNum)
+                    const audioChapter = safeAudioChapters.find(ac => ac.number === chapterNum)
                     
                     return {
                         id: `chapter-${index}`,
@@ -46,11 +52,11 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             } else {
                 // Se não encontrar capítulos no formato esperado, tenta encontrar outros títulos em negrito
                 const headingRegex = /\*\*(.*?)\*\*/g
-                const headingMatches = [...summary.matchAll(headingRegex)]
+                const headingMatches = [...safeSummary.matchAll(headingRegex)]
                 const extractedHeadings = headingMatches
                     .filter(match => match[1].length > 3 && match[1].length < 100)
                     .map((match, index) => {
-                        const audioChapter = audioChapters[index]
+                        const audioChapter = safeAudioChapters[index]
                         
                         return {
                             id: `section-${index}`,
@@ -67,7 +73,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         }
         
         extractChapters()
-    }, [summary, audioChapters])
+    }, [safeSummary, safeAudioChapters])
 
     useEffect(() => {
         const handleScroll = () => {
@@ -105,22 +111,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         const audio = audioRef.current
         if (!audio) return
 
-        if (isAudioPlaying) {
-            const playPromise = audio.play()
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.log("Audio play prevented:", error)
-                })
-            }
-        } else {
-            audio.pause()
-        }
-    }, [isAudioPlaying, currentAudioUrl])
-
-    useEffect(() => {
-        const audio = audioRef.current
-        if (!audio) return
-
         const handleTimeUpdate = () => setCurrentAudioTime(audio.currentTime)
         const handleLoadedMetadata = () => setAudioDuration(audio.duration)
         const handleEnded = () => setIsAudioPlaying(false)
@@ -147,9 +137,25 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         setIsAudioPlaying(!isAudioPlaying)
     }
 
+    // Função auxiliar para iniciar reprodução após mudança de capítulo
+    const playAfterChapterChange = (chapterIndex) => {
+        setCurrentChapter(chapterIndex)
+        // Aguarda um tick para o src atualizar e então inicia a reprodução
+        setTimeout(() => {
+            if (audioRef.current) {
+                audioRef.current.load()
+                audioRef.current.play().then(() => {
+                    setIsAudioPlaying(true)
+                }).catch(err => {
+                    console.error('Erro ao iniciar reprodução:', err)
+                })
+            }
+        }, 100)
+    }
+
     const goToNextAudioChapter = async () => {
-        if (currentChapter < audioChapters.length - 1) {
-            const nextChapter = audioChapters[currentChapter + 1]
+        if (currentChapter < safeAudioChapters.length - 1) {
+            const nextChapter = safeAudioChapters[currentChapter + 1]
             
             // Se o próximo capítulo não tem áudio, gera sob demanda
             if (!nextChapter.audioUrl && onGenerateChapterAudio) {
@@ -162,7 +168,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     await onGenerateChapterAudio({
                         number: nextChapter.number,
                         title: nextChapter.title,
-                        content: summary.substring(nextChapter.startPos, nextChapter.endPos),
+                        content: safeSummary.substring(nextChapter.startPos, nextChapter.endPos),
                         startPos: nextChapter.startPos,
                         endPos: nextChapter.endPos
                     })
@@ -170,8 +176,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     if (showToast) {
                         showToast(`Áudio do capítulo ${nextChapter.number} gerado!`, 'success')
                     }
-                    setCurrentChapter(currentChapter + 1)
-                    setIsAudioPlaying(true)
+                    playAfterChapterChange(currentChapter + 1)
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${nextChapter.number}`, 'error')
@@ -180,15 +185,14 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     setIsGeneratingAudio(false)
                 }
             } else {
-                setCurrentChapter(currentChapter + 1)
-                setIsAudioPlaying(true)
+                playAfterChapterChange(currentChapter + 1)
             }
         }
     }
 
     const goToPreviousAudioChapter = async () => {
         if (currentChapter > 0) {
-            const prevChapter = audioChapters[currentChapter - 1]
+            const prevChapter = safeAudioChapters[currentChapter - 1]
             
             // Se o capítulo anterior não tem áudio, gera sob demanda
             if (!prevChapter.audioUrl && onGenerateChapterAudio) {
@@ -201,7 +205,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     await onGenerateChapterAudio({
                         number: prevChapter.number,
                         title: prevChapter.title,
-                        content: summary.substring(prevChapter.startPos, prevChapter.endPos),
+                        content: safeSummary.substring(prevChapter.startPos, prevChapter.endPos),
                         startPos: prevChapter.startPos,
                         endPos: prevChapter.endPos
                     })
@@ -209,8 +213,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     if (showToast) {
                         showToast(`Áudio do capítulo ${prevChapter.number} gerado!`, 'success')
                     }
-                    setCurrentChapter(currentChapter - 1)
-                    setIsAudioPlaying(true)
+                    playAfterChapterChange(currentChapter - 1)
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${prevChapter.number}`, 'error')
@@ -219,13 +222,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     setIsGeneratingAudio(false)
                 }
             } else {
-                setCurrentChapter(currentChapter - 1)
-                setIsAudioPlaying(true)
+                playAfterChapterChange(currentChapter - 1)
             }
         }
     }
 
-    const currentAudioUrl = audioChapters[currentChapter]?.audioUrl
+    const currentAudioUrl = safeAudioChapters[currentChapter]?.audioUrl
 
     const increaseFontSize = () => {
         setFontSize(prev => Math.min(28, prev + 2))
@@ -352,8 +354,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         return formattedText
     }
 
-    const estimatedReadTime = Math.ceil(summary.length / 1250)
-    const wordsRead = Math.floor((progress / 100) * (summary.length / 5))
+    const estimatedReadTime = Math.ceil(safeSummary.length / 1250)
+    const wordsRead = Math.floor((progress / 100) * (safeSummary.length / 5))
 
     return (
         <div className={`reading-mode theme-${theme}`}>
@@ -459,7 +461,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                     className={`reading-index-item ${index === currentChapter ? 'current' : ''}`}
                                     onClick={async () => {
                                         scrollToChapter(index)
-                                        setCurrentChapter(index)
                                         
                                         // Se o capítulo não tem áudio e podemos gerar, gera sob demanda
                                         if (!chapter.audioUrl && onGenerateChapterAudio && chapter.startPos !== undefined) {
@@ -470,12 +471,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                             
                                             try {
                                                 // Calcular endPos se não tiver
-                                                const endPos = chapter.endPos || (chapters[index + 1]?.startPos || summary.length)
+                                                const endPos = chapter.endPos || (chapters[index + 1]?.startPos || safeSummary.length)
                                                 
                                                 await onGenerateChapterAudio({
                                                     number: chapter.number,
                                                     title: chapter.title,
-                                                    content: summary.substring(chapter.startPos, endPos),
+                                                    content: safeSummary.substring(chapter.startPos, endPos),
                                                     startPos: chapter.startPos,
                                                     endPos: endPos
                                                 })
@@ -483,7 +484,9 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                 if (showToast) {
                                                     showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
                                                 }
-                                                setIsAudioPlaying(true)
+                                                
+                                                // Inicia a reprodução automaticamente após gerar
+                                                playAfterChapterChange(index)
                                             } catch (error) {
                                                 if (showToast) {
                                                     showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
@@ -491,8 +494,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                             } finally {
                                                 setIsGeneratingAudio(false)
                                             }
-                                        } else {
-                                            setIsAudioPlaying(true)
                                         }
                                     }}
                                 >
@@ -524,7 +525,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     <div className="reading-stats">
                         <span>{estimatedReadTime} min de leitura</span>
                         <span>•</span>
-                        <span>{summary.length.toLocaleString()} caracteres</span>
+                        <span>{safeSummary.length.toLocaleString()} caracteres</span>
                     </div>
                 </div>
 
@@ -547,7 +548,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             </div>
 
             <footer className="reading-footer">
-                {audioChapters && audioChapters.length > 0 && (
+                {audioChapters && safeAudioChapters.length > 0 && (
                     <div className={`mini-player ${miniPlayerOpen ? 'open' : ''}`}>
                         <audio
                             ref={audioRef}
@@ -561,7 +562,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                             <div className="mini-player-expanded">
                                 <div className="mini-player-header">
                                     <span className="mini-player-title">
-                                        Cap. {audioChapters[currentChapter]?.number}: {audioChapters[currentChapter]?.title}
+                                        Cap. {safeAudioChapters[currentChapter]?.number}: {safeAudioChapters[currentChapter]?.title}
                                     </span>
                                     <button
                                         className="mini-player-close"
@@ -579,8 +580,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         disabled={currentChapter === 0 || isGeneratingAudio}
                                         title="Capítulo anterior"
                                     >
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <polyline points="15 18 9 12 15 6" />
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
                                         </svg>
                                     </button>
                                     
@@ -590,19 +591,19 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         disabled={isGeneratingAudio}
                                     >
                                         {isGeneratingAudio ? (
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{animation: 'spin 1s linear infinite'}}>
-                                                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
                                             </svg>
-                                        ) : (isAudioPlaying ? (
-                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                        ) : isAudioPlaying ? (
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                                 <rect x="6" y="4" width="4" height="16" rx="1" />
                                                 <rect x="14" y="4" width="4" height="16" rx="1" />
                                             </svg>
                                         ) : (
-                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                                                 <polygon points="5 3 19 12 5 21 5 3" />
                                             </svg>
-                                        ))}
+                                        )}
                                     </button>
 
                                     <button
@@ -611,8 +612,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         disabled={isGeneratingAudio}
                                         title="Próximo capítulo"
                                     >
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <polyline points="9 18 15 12 9 6" />
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
                                         </svg>
                                     </button>
                                 </div>
@@ -622,7 +623,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                 </div>
 
                                 <div className="mini-player-chapters">
-                                    {audioChapters.map((chapter, idx) => (
+                                    {safeAudioChapters.map((chapter, idx) => (
                                         <button
                                             key={idx}
                                             className={`mini-chapter-btn ${idx === currentChapter ? 'active' : ''}`}
@@ -638,7 +639,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                         await onGenerateChapterAudio({
                                                             number: chapter.number,
                                                             title: chapter.title,
-                                                            content: summary.substring(chapter.startPos, chapter.endPos),
+                                                            content: safeSummary.substring(chapter.startPos, chapter.endPos),
                                                             startPos: chapter.startPos,
                                                             endPos: chapter.endPos
                                                         })
@@ -646,7 +647,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                         if (showToast) {
                                                             showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
                                                         }
-                                                        setCurrentChapter(idx)
+                                                        playAfterChapterChange(idx)
                                                     } catch (error) {
                                                         if (showToast) {
                                                             showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
@@ -655,7 +656,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                         setIsGeneratingAudio(false)
                                                     }
                                                 } else {
-                                                    setCurrentChapter(idx)
+                                                    playAfterChapterChange(idx)
                                                 }
                                             }}
                                             disabled={isGeneratingAudio}
@@ -671,7 +672,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                 onClick={() => setMiniPlayerOpen(true)}
                             >
                                 <span className="mini-player-status">
-                                    🎧 Cap. {audioChapters[currentChapter]?.number} - {isAudioPlaying ? '▶' : '⏸'}
+                                    🎧 Cap. {safeAudioChapters[currentChapter]?.number} - {isAudioPlaying ? '▶' : '⏸'}
                                 </span>
                             </button>
                         )}

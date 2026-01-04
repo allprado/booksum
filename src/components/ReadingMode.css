@@ -458,9 +458,6 @@
     background: var(--reading-surface);
     transition: all var(--transition-normal);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
 }
 
 .mini-player-toggle {
@@ -501,14 +498,6 @@
     flex-direction: column;
     gap: var(--space-lg);
     animation: slideUpSmooth 0.3s ease;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
 }
 
 @keyframes slideUpSmooth {
@@ -602,16 +591,15 @@
 }
 
 .mini-ctrl-btn {
-    background: rgba(128, 128, 128, 0.1);
-    border: 1px solid rgba(128, 128, 128, 0.2);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     color: var(--reading-text);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-full);
     width: 44px;
     height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
     cursor: pointer;
     transition: all var(--transition-fast);
     backdrop-filter: blur(10px);
