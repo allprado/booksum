@@ -912,14 +912,7 @@ Gere o resumo final em português brasileiro:`
             summary={summary}
             audioUrl={audioUrl}
             audioChapters={audioChapters}
-            onGenerateAudio={handleGenerateAudio}
             onGenerateChapterAudio={handleGenerateChapterAudio}
-            loading={loading}
-            selectedVoice={selectedVoice}
-            onVoiceChange={setSelectedVoice}
-            speechRate={speechRate}
-            onRateChange={setSpeechRate}
-            availableVoices={availableVoices}
             showToast={showToast}
           />
         )}
