@@ -120,6 +120,20 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         }
     }, [])
 
+    // Efeito para tocar automaticamente quando o áudio muda e isAudioPlaying está true
+    useEffect(() => {
+        const audio = audioRef.current
+        if (!audio || !currentAudioUrl) return
+
+        if (isAudioPlaying) {
+            audio.load()
+            audio.play().catch(err => {
+                console.error('Erro ao reproduzir áudio:', err)
+                setIsAudioPlaying(false)
+            })
+        }
+    }, [currentAudioUrl, isAudioPlaying])
+
     const toggleAudioPlay = () => {
         if (!audioRef.current) return
         
@@ -154,8 +168,16 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     if (showToast) {
                         showToast(`Áudio do capítulo ${nextChapter.number} gerado!`, 'success')
                     }
+                    
+                    // Aguarda um pequeno delay para garantir que o estado foi atualizado
+                    await new Promise(resolve => setTimeout(resolve, 100))
                     setCurrentChapter(currentChapter + 1)
-                    setIsAudioPlaying(true)
+                    
+                    // Toca automaticamente
+                    if (audioRef.current) {
+                        audioRef.current.play()
+                        setIsAudioPlaying(true)
+                    }
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${nextChapter.number}`, 'error')
@@ -165,7 +187,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 }
             } else {
                 setCurrentChapter(currentChapter + 1)
-                setIsAudioPlaying(true)
+                
+                // Toca automaticamente
+                if (audioRef.current) {
+                    audioRef.current.play()
+                    setIsAudioPlaying(true)
+                }
             }
         }
     }
@@ -193,8 +220,16 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     if (showToast) {
                         showToast(`Áudio do capítulo ${prevChapter.number} gerado!`, 'success')
                     }
+                    
+                    // Aguarda um pequeno delay para garantir que o estado foi atualizado
+                    await new Promise(resolve => setTimeout(resolve, 100))
                     setCurrentChapter(currentChapter - 1)
-                    setIsAudioPlaying(true)
+                    
+                    // Toca automaticamente
+                    if (audioRef.current) {
+                        audioRef.current.play()
+                        setIsAudioPlaying(true)
+                    }
                 } catch (error) {
                     if (showToast) {
                         showToast(`Erro ao gerar áudio do capítulo ${prevChapter.number}`, 'error')
@@ -204,7 +239,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 }
             } else {
                 setCurrentChapter(currentChapter - 1)
-                setIsAudioPlaying(true)
+                
+                // Toca automaticamente
+                if (audioRef.current) {
+                    audioRef.current.play()
+                    setIsAudioPlaying(true)
+                }
             }
         }
     }
@@ -466,6 +506,16 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                 if (showToast) {
                                                     showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
                                                 }
+                                                
+                                                // Aguarda um pequeno delay para garantir que o estado foi atualizado
+                                                await new Promise(resolve => setTimeout(resolve, 100))
+                                                setCurrentChapter(index)
+                                                
+                                                // Toca automaticamente
+                                                setIsAudioPlaying(true)
+                                                if (audioRef.current) {
+                                                    audioRef.current.play()
+                                                }
                                             } catch (error) {
                                                 if (showToast) {
                                                     showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
@@ -609,7 +659,16 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                         if (showToast) {
                                                             showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
                                                         }
+                                                        
+                                                        // Aguarda um pequeno delay para garantir que o estado foi atualizado
+                                                        await new Promise(resolve => setTimeout(resolve, 100))
                                                         setCurrentChapter(idx)
+                                                        
+                                                        // Toca automaticamente
+                                                        setIsAudioPlaying(true)
+                                                        if (audioRef.current) {
+                                                            audioRef.current.play()
+                                                        }
                                                     } catch (error) {
                                                         if (showToast) {
                                                             showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
@@ -619,6 +678,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                     }
                                                 } else {
                                                     setCurrentChapter(idx)
+                                                    
+                                                    // Toca automaticamente
+                                                    setIsAudioPlaying(true)
+                                                    if (audioRef.current) {
+                                                        audioRef.current.play()
+                                                    }
                                                 }
                                             }}
                                             disabled={isGeneratingAudio}

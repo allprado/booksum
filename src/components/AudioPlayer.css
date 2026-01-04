@@ -171,7 +171,9 @@
     background: var(--glass-bg);
     border-radius: var(--radius-lg);
     max-width: 100%;
+    width: 100%;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .visualizer-bars {
@@ -181,6 +183,8 @@
     gap: 3px;
     height: 100%;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .bar {
@@ -363,6 +367,7 @@
     gap: var(--space-md);
     flex-wrap: wrap;
     max-width: 100%;
+    box-sizing: border-box;
 }
 
 .control-btn {
