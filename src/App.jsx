@@ -323,30 +323,125 @@ Por favor, tente outro livro que esteja em minha base de conhecimento.`)
       
       showToast('Gerando resumo estilo Blink...', 'info')
       
-      // Prompt unificado estilo Blink com instruções rigorosas
-      const prompt = `Escreva um resumo detalhado do livro "${selectedBook.title}", de ${selectedBook.authors?.join(', ')}, seguindo o estilo de um 'Blink'. O texto deve ser estruturado da seguinte forma:
+      // ETAPA 1: Gerar a estrutura dos capítulos
+      showToast('Etapa 1/2: Criando estrutura dos capítulos...', 'info')
+      
+      const structurePrompt = `Você é um especialista em resumos de livros estilo Blink.
 
-Introdução: Comece com um título chamativo no formato "Por que ler este livro?" e apresente a tese central ou o conflito principal da obra.
+Para o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}, crie APENAS a estrutura/índice dos capítulos que serão abordados.
 
-Capítulos Adaptáveis: Divida o conteúdo em uma quantidade de capítulos (seções) que faça sentido para a obra (geralmente entre 5 e 10). Cada capítulo deve começar com um título em negrito no formato "**Capítulo X de Y**" seguido de uma frase que resuma a lição ou o arco narrativo daquela seção.
+Retorne exatamente neste formato (um por linha, sem numeração adicional):
+Por que ler este livro?
+Capítulo 1 de [TOTAL]: [Título/Tema do capítulo em uma frase]
+Capítulo 2 de [TOTAL]: [Título/Tema do capítulo em uma frase]
+...
+Capítulo N de [TOTAL]: [Título/Tema do capítulo em uma frase]
+Resumo Final
 
-Nível de Análise: O texto não deve ser apenas um relato de fatos. Ele deve oferecer uma análise profunda sobre o comportamento humano, motivações psicológicas, contextos históricos ou aplicações práticas, dependendo do gênero do livro.
-
-Estilo e Tom: Use um tom empático, instrutivo e fluído. Evite listas de tópicos (bullets); prefira parágrafos narrativos que conectem uma ideia à outra.
-
-Critério de Extensão: Garanta que cada seção tenha profundidade suficiente para que o leitor sinta que compreendeu a lógica do autor, não apenas o resultado final.
-
-Resumo Final: Encerre com uma seção chamada "**Resumo Final**" que sintetize a mensagem mais duradoura do livro em um parágrafo impactante.
-
-Ajuste o número total de capítulos para cobrir todos os pilares essenciais do livro sem ser repetitivo ou superficial.
-
-CRÍTICO: Baseie-se SOMENTE no conteúdo real do livro. NÃO invente, NÃO suponha, NÃO crie informações que não estejam no livro. Se você não tem certeza sobre alguma informação específica, omita-a ao invés de inventá-la.
+Escolha entre 5 e 10 capítulos que cubram todos os pilares essenciais do livro.
 
 ${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
 
-Gere o resumo completo agora em português brasileiro:`
+Estrutura:`
 
-      const finalSummary = await callAI(prompt)
+      const structure = await callAI(structurePrompt)
+      const lines = structure.trim().split('\n').filter(line => line.trim().length > 0)
+      
+      // Extrair total de capítulos
+      const totalChaptersMatch = structure.match(/Capítulo\s+(\d+)\s+de\s+(\d+)/)
+      const totalChapters = totalChaptersMatch ? parseInt(totalChaptersMatch[2]) : lines.filter(l => l.includes('Capítulo')).length
+      
+      // ETAPA 2: Gerar cada capítulo com conhecimento da estrutura
+      showToast('Etapa 2/2: Gerando conteúdo dos capítulos...', 'info')
+      
+      const chapterContents = []
+      const chapterLines = lines.filter(l => l.includes('Capítulo'))
+      
+      for (let i = 0; i < chapterLines.length; i++) {
+        const chapterLine = chapterLines[i]
+        const chapterNum = i + 1
+        
+        showToast(`Gerando capítulo ${chapterNum}/${chapterLines.length}...`, 'info')
+        
+        const chapterPrompt = `Você é um especialista em resumos de livros estilo Blink.
+
+Está gerando o conteúdo para um resumo do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
+
+A estrutura completa do resumo tem ${totalChapters} capítulos:
+${chapterLines.map((line, idx) => `${idx + 1}. ${line}`).join('\n')}
+
+Agora você precisa gerar o conteúdo DETALHADO do seguinte capítulo:
+
+${chapterLine}
+
+INSTRUÇÕES PARA ESTE CAPÍTULO:
+- Comece com: **${chapterLine}**
+- Desenvolvimento: Escreva entre 800 e 1500 palavras que cubram profundamente este aspecto do livro
+- Tom: Empático, instrutivo e fluído - nada de listas de tópicos
+- Análise: Ofereça análise profunda sobre comportamento humano, motivações, contextos históricos ou aplicações práticas
+- Coerência: Este capítulo faz parte da estrutura maior, então conecte com os temas anteriores quando apropriado
+- Precisão: APENAS informações que estão realmente no livro
+
+${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
+
+Gere agora o conteúdo detalhado deste capítulo em português brasileiro:`
+
+        const chapterContent = await callAI(chapterPrompt)
+        chapterContents.push(chapterContent.trim())
+        
+        // Pequeno delay para evitar rate limit
+        if (i < chapterLines.length - 1) {
+          await new Promise(r => setTimeout(r, 500))
+        }
+      }
+      
+      // ETAPA 3: Gerar introdução
+      showToast('Gerando introdução e finalizando...', 'info')
+      
+      const introPrompt = `Você é um especialista em resumos de livros estilo Blink.
+
+Para o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}, crie uma INTRODUÇÃO impactante.
+
+Esta introdução será a seção inicial do resumo e deve:
+- Começar com um título chamativo: **Por que ler este livro?**
+- Apresentar a tese central ou conflito principal da obra
+- Motivar o leitor a continuar lendo
+- Ter entre 300 e 500 palavras
+- Usar tom empático e envolvente
+
+${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
+
+Gere a introdução em português brasileiro:`
+
+      const introduction = await callAI(introPrompt)
+      
+      // ETAPA 4: Gerar resumo final
+      const finalSummaryPrompt = `Você é um especialista em resumos de livros estilo Blink.
+
+Para o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}, crie uma seção de RESUMO FINAL.
+
+Esta seção deve:
+- Começar com o título: **Resumo Final**
+- Sintetizar em UM PARÁGRAFO a mensagem mais duradoura do livro
+- Ser impactante e memorável
+- Conectar os temas principais abordados
+- Deixar o leitor com uma reflexão valiosa
+- Ter entre 150 e 250 palavras
+
+${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
+
+Gere o resumo final em português brasileiro:`
+
+      const finalSummarySection = await callAI(finalSummaryPrompt)
+      
+      // MONTAGEM FINAL: Combinar todas as partes
+      const finalSummary = [
+        introduction.trim(),
+        '',
+        ...chapterContents.map(c => c.trim()),
+        '',
+        finalSummarySection.trim()
+      ].join('\n\n')
 
       if (finalSummary) {
         // Limpar caracteres de separação markdown que possam ter sido incluídos
