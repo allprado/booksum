@@ -17,6 +17,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     const contentRef = useRef(null)
     const shouldPlayAfterLoadRef = useRef(false)
     const pendingChapterIndexRef = useRef(null)
+    const isManualSelectionRef = useRef(false)
+    const manualSelectionTimeoutRef = useRef(null)
 
     // Verificação de segurança para o summary
     const safeSummary = summary || ''
@@ -165,6 +167,11 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
 
     useEffect(() => {
         const handleScroll = () => {
+            // Ignora atualizações se foi uma seleção manual recente
+            if (isManualSelectionRef.current) {
+                return
+            }
+
             if (!contentRef.current) return
 
             const { scrollTop, scrollHeight, clientHeight } = contentRef.current
@@ -174,12 +181,10 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             // Detecta o capítulo atual baseado na posição de scroll
             if (chapters.length > 0) {
                 const elements = chapters.map(ch => document.getElementById(ch.id)).filter(Boolean)
-                let currentIdx = 0
-                
-                // Encontra qual capítulo está mais próximo do topo visível
                 let closestIdx = 0
                 let closestDistance = Infinity
                 
+                // Encontra qual capítulo está mais próximo do topo visível
                 for (let i = 0; i < elements.length; i++) {
                     const rect = elements[i].getBoundingClientRect()
                     const distance = Math.abs(rect.top - 100) // 100px do topo
@@ -284,7 +289,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
 
         if (targetChapter.audioUrl) {
             shouldPlayAfterLoadRef.current = true
-            setCurrentChapter(targetIndex)
+            // Já foi setado em scrollToChapter, então não precisa aqui
             if (audioRef.current) {
                 audioRef.current.load()
             }
@@ -345,10 +350,26 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         const chapterId = chapters[chapterIndex]?.id
         if (!chapterId) return
         
+        // Ativa flag para impedir que o scroll listener interfira
+        isManualSelectionRef.current = true
+        
+        // Limpa o timeout anterior se existir
+        if (manualSelectionTimeoutRef.current) {
+            clearTimeout(manualSelectionTimeoutRef.current)
+        }
+        
+        // Define o capítulo selecionado imediatamente
+        setCurrentChapter(chapterIndex)
+        
         const element = document.getElementById(chapterId)
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'start' })
             setShowIndex(false)
+            
+            // Desativa a flag após a animação de scroll terminar (300ms é um tempo seguro)
+            manualSelectionTimeoutRef.current = setTimeout(() => {
+                isManualSelectionRef.current = false
+            }, 300)
         }
     }
 
@@ -363,6 +384,9 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause()
+            }
+            if (manualSelectionTimeoutRef.current) {
+                clearTimeout(manualSelectionTimeoutRef.current)
             }
         }
     }, [])
