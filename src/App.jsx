@@ -6,6 +6,7 @@ import BookDetail from './components/BookDetail'
 import SummaryView from './components/SummaryView'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
+import Modal from './components/Modal'
 import './App.css'
 
 function App({ isAdminMode = false }) {
@@ -30,6 +31,10 @@ function App({ isAdminMode = false }) {
   // Fonte de busca e Modelo de resumo - fixos no modo público
   const [searchSource, setSearchSource] = useState('google')
   const [summaryModel, setSummaryModel] = useState('gemini') // gemini, openrouter
+
+  // Modal para aviso de falta de conhecimento
+  const [showKnowledgeWarning, setShowKnowledgeWarning] = useState(false)
+  const [knowledgeWarningMessage, setKnowledgeWarningMessage] = useState('')
 
   const availableVoices = [
     { id: 'pt-BR-FranciscaNeural', label: 'Francisca (Feminina)', gender: 'Female' },
@@ -321,9 +326,10 @@ Sua resposta (SIM ou NÃO):`
       const hasKnowledge = verification.trim().toUpperCase().includes('SIM')
       
       if (!hasKnowledge) {
-        throw new Error(`Não possuo conhecimento detalhado suficiente sobre o livro "${selectedBook.title}" para criar um resumo confiável. Isso significa que eu poderia inventar ou criar informações incorretas sobre o livro.
-
-Por favor, tente outro livro que esteja em minha base de conhecimento.`)
+        setKnowledgeWarningMessage(`Não possuo conhecimento detalhado suficiente sobre o livro "${selectedBook.title}" para criar um resumo confiável. Isso significa que eu poderia inventar ou criar informações incorretas sobre o livro.\n\nPor favor, tente outro livro que esteja em minha base de conhecimento.`)
+        setShowKnowledgeWarning(true)
+        setLoading(false)
+        return
       }
       
       showToast('Gerando resumo estilo Blink...', 'info', true)
@@ -921,6 +927,15 @@ Gere o resumo final em português brasileiro:`
       <BottomNav currentView={view} onNavigate={setView} />
 
       {toast && <Toast message={toast.message} type={toast.type} />}
+
+      <Modal
+        isOpen={showKnowledgeWarning}
+        title="Livro não disponível"
+        message={knowledgeWarningMessage}
+        type="warning"
+        onClose={() => setShowKnowledgeWarning(false)}
+        showCloseButton={true}
+      />
 
       {loading && (
         <div className="loading-overlay">
