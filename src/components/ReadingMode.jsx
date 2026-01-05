@@ -172,29 +172,28 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 return
             }
 
-            if (!contentRef.current) return
+            const container = contentRef.current
+            if (!container) return
 
-            const { scrollTop, scrollHeight, clientHeight } = contentRef.current
+            const { scrollTop, scrollHeight, clientHeight } = container
             const scrollProgress = (scrollTop / (scrollHeight - clientHeight)) * 100
             setProgress(Math.min(100, Math.max(0, scrollProgress)))
             
-            // Detecta o capítulo atual baseado na posição de scroll
+            // Detecta o capítulo atual baseado na posição relativa dentro do container
             if (playerChapters.length > 0) {
                 const elements = playerChapters.map(ch => document.getElementById(ch.id)).filter(Boolean)
                 let closestIdx = 0
                 let closestDistance = Infinity
+                const offsetCompensation = 80 // compensar header fixo
                 
-                // Encontra qual capítulo está mais próximo do topo visível
                 for (let i = 0; i < elements.length; i++) {
-                    const rect = elements[i].getBoundingClientRect()
-                    const distance = Math.abs(rect.top - 100) // 100px do topo
-                    
+                    const elementTop = elements[i].offsetTop
+                    const distance = Math.abs((elementTop - scrollTop) - offsetCompensation)
                     if (distance < closestDistance) {
                         closestDistance = distance
                         closestIdx = i
                     }
                 }
-                
                 setCurrentChapter(closestIdx)
             }
         }
@@ -364,13 +363,16 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         
         const element = document.getElementById(chapterId)
         if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            const container = contentRef.current
+            const offsetCompensation = 80
+            const targetTop = element.offsetTop - offsetCompensation
+            container.scrollTo({ top: targetTop, behavior: 'smooth' })
             setShowIndex(false)
             
-            // Desativa a flag após a animação de scroll terminar (1 segundo para garantir)
+            // Desativa a flag após a animação de scroll terminar (1.5s para cobrir animação e inércia)
             manualSelectionTimeoutRef.current = setTimeout(() => {
                 isManualSelectionRef.current = false
-            }, 1000)
+            }, 1500)
         } else {
             console.warn(`Elemento com ID ${chapterId} não encontrado`)
             isManualSelectionRef.current = false
