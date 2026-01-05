@@ -612,8 +612,14 @@ Gere o resumo final em português brasileiro:`
         setView('summary')
         showToast('Conteúdo gerado com sucesso!', 'success')
         
+        // Garantir que o livro existe no banco de dados
+        let bookId = supabase.currentBookId
+        if (!bookId) {
+          bookId = await supabase.getOrCreateBookInDB(selectedBook)
+        }
+        
         // Salvar resumo no Supabase
-        if (supabase.currentBookId) {
+        if (bookId) {
           const summaryData = {
             chapters: chapterContents.map((content, idx) => ({
               index: idx,
@@ -625,7 +631,7 @@ Gere o resumo final em português brasileiro:`
           }
           
           await supabase.saveSummaryToDB(
-            supabase.currentBookId,
+            bookId,
             summaryData,
             {
               googleBooksId: selectedBook.id,
@@ -637,7 +643,8 @@ Gere o resumo final em português brasileiro:`
           // Se o usuário estiver autenticado, adicionar à biblioteca
           if (supabase.user) {
             try {
-              await supabase.addBookToLibrary(supabase.currentBookId)
+              await supabase.addBookToLibrary(bookId)
+              showToast('Livro adicionado à sua biblioteca!', 'success')
             } catch (error) {
               // Pode já estar na biblioteca, ignorar erro
               console.log('Livro já na biblioteca ou erro ao adicionar:', error)
