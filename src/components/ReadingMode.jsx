@@ -51,7 +51,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             
             if (chapter && chapter.audioUrl) {
                 pendingChapterIndexRef.current = null
-                shouldPlayAfterLoadRef.current = true
+                shouldPlayAfterLoadRef.current = true // Sempre toca automaticamente quando um capítulo pendente fica pronto
                 setCurrentChapter(pendingIndex)
                 setMiniPlayerOpen(true) // Abrir o mini-player automaticamente
                 
@@ -281,13 +281,17 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         if (targetIndex < 0 || targetIndex >= playerChapters.length) return
 
         const targetChapter = playerChapters[targetIndex]
+        const wasAudioPlaying = isAudioPlaying
         pauseAndResetAudio()
         
         // Scroll automático para o capítulo correspondente
         scrollToChapter(targetIndex)
 
         if (targetChapter.audioUrl) {
-            shouldPlayAfterLoadRef.current = true
+            // Se o áudio estava tocando, marca para tocar automaticamente após carregar
+            if (wasAudioPlaying) {
+                shouldPlayAfterLoadRef.current = true
+            }
             // Já foi setado em scrollToChapter, então não precisa aqui
             if (audioRef.current) {
                 audioRef.current.load()
@@ -649,7 +653,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                             <div className="mini-player-expanded">
                                 <div className="mini-player-header">
                                     <span className="mini-player-title">
-                                        Cap. {playerChapters[currentChapter]?.number}: {playerChapters[currentChapter]?.title}
+                                        {playerChapters[currentChapter]?.isIntro 
+                                            ? `Introdução: ${playerChapters[currentChapter]?.title}` 
+                                            : playerChapters[currentChapter]?.isConclusion 
+                                            ? `Conclusão: ${playerChapters[currentChapter]?.title}`
+                                            : `Cap. ${playerChapters[currentChapter]?.number}: ${playerChapters[currentChapter]?.title}`
+                                        }
                                     </span>
                                     <button
                                         className="mini-player-close"
