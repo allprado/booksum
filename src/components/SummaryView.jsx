@@ -70,8 +70,6 @@ function SummaryView({
                 </div>
 
                 <div className="summary-actions">
-                    <p className="summary-audio-hint">O áudio agora é reproduzido dentro do leitor. Abra o modo leitura para ouvir e navegar pelos capítulos.</p>
-
                     <button
                         className="btn btn-primary btn-lg w-full"
                         onClick={() => setShowReadingMode(true)}

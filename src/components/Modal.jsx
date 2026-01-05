@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import './Modal.css'
 
-function Modal({ isOpen, title, message, type = 'info', onClose, showCloseButton = true }) {
+function Modal({ isOpen, title, message, type = 'info', onClose, showCloseButton = true, onRetry = null, retryButtonText = 'Tentar Novamente' }) {
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden'
@@ -88,8 +88,16 @@ function Modal({ isOpen, title, message, type = 'info', onClose, showCloseButton
 
                 {showCloseButton && (
                     <div className="modal-footer">
+                        {onRetry && (
+                            <button className="btn btn-accent" onClick={() => {
+                                onClose()
+                                onRetry()
+                            }}>
+                                {retryButtonText}
+                            </button>
+                        )}
                         <button className="btn btn-primary" onClick={onClose}>
-                            Entendi
+                            {onRetry ? 'Cancelar' : 'Entendi'}
                         </button>
                     </div>
                 )}

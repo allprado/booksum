@@ -4,6 +4,7 @@ import SearchBar from './components/SearchBar'
 import BookList from './components/BookList'
 import BookDetail from './components/BookDetail'
 import SummaryView from './components/SummaryView'
+import RecommendedBooks from './components/RecommendedBooks'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Modal from './components/Modal'
@@ -909,6 +910,20 @@ Gere o resumo final em português brasileiro:`
     setAudioChapters([])
   }
 
+  const handleNavigate = (newView) => {
+    if (newView === 'home') {
+      handleHome()
+    } else if (newView === 'recommended') {
+      setView('recommended')
+      setSelectedBook(null)
+      setSummary(null)
+      setAudioUrl(null)
+      setAudioChapters([])
+    } else {
+      setView(newView)
+    }
+  }
+
   return (
     <div className="app">
       <Header
@@ -951,6 +966,12 @@ Gere o resumo final em português brasileiro:`
           </div>
         )}
 
+        {view === 'recommended' && (
+          <RecommendedBooks
+            onSelectBook={handleSelectBook}
+          />
+        )}
+
         {view === 'detail' && selectedBook && (
           <BookDetail
             book={selectedBook}
@@ -974,7 +995,7 @@ Gere o resumo final em português brasileiro:`
         )}
       </main>
 
-      <BottomNav currentView={view} onNavigate={setView} />
+      <BottomNav currentView={view} onNavigate={handleNavigate} />
 
       {toast && <Toast message={toast.message} type={toast.type} />}
 
@@ -984,6 +1005,8 @@ Gere o resumo final em português brasileiro:`
         message={knowledgeWarningMessage}
         type="warning"
         onClose={() => setShowKnowledgeWarning(false)}
+        onRetry={() => handleGenerateSummary()}
+        retryButtonText="Tentar Novamente"
         showCloseButton={true}
       />
 

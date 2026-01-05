@@ -11,6 +11,14 @@ function BottomNav({ currentView, onNavigate }) {
           <span className="material-symbols-rounded">search</span>
           <span className="nav-label">Buscar</span>
         </button>
+
+        <button
+          className={`nav-item ${currentView === 'recommended' ? 'active' : ''}`}
+          onClick={() => onNavigate('recommended')}
+        >
+          <span className="material-symbols-rounded">favorite</span>
+          <span className="nav-label">Recomendados</span>
+        </button>
         
         <button
           className={`nav-item ${currentView === 'library' ? 'active' : ''}`}
