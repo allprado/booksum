@@ -345,6 +345,24 @@ Sua resposta (SIM ou NÃO):`
       
       showToast('Gerando resumo estilo Blink...', 'info', true)
       
+      // Calcular número de capítulos baseado no número de páginas
+      const pageCount = selectedBook.pageCount || 0
+      let targetChapters = 7 // Padrão se não houver informação de páginas
+      
+      if (pageCount > 0) {
+        if (pageCount <= 150) {
+          targetChapters = 5
+        } else if (pageCount <= 250) {
+          targetChapters = 6
+        } else if (pageCount <= 350) {
+          targetChapters = 8
+        } else if (pageCount <= 450) {
+          targetChapters = 9
+        } else {
+          targetChapters = 10
+        }
+      }
+      
       // ETAPA 1: Gerar a estrutura dos capítulos
       showToast('Etapa 1/2: Criando estrutura dos capítulos...', 'info', true)
       
@@ -360,13 +378,13 @@ Para o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}, cri
 
 Retorne exatamente neste formato (um por linha, sem numeração adicional):
 Por que ler este livro?
-Capítulo 1 de [TOTAL]: [Título/Tema do capítulo em uma frase]
-Capítulo 2 de [TOTAL]: [Título/Tema do capítulo em uma frase]
+Capítulo 1 de ${targetChapters}: [Título/Tema do capítulo em uma frase]
+Capítulo 2 de ${targetChapters}: [Título/Tema do capítulo em uma frase]
 ...
-Capítulo N de [TOTAL]: [Título/Tema do capítulo em uma frase]
+Capítulo ${targetChapters} de ${targetChapters}: [Título/Tema do capítulo em uma frase]
 Resumo Final
 
-Escolha entre 5 e 10 capítulos que cubram todos os pilares essenciais do livro.
+IMPORTANTE: Crie EXATAMENTE ${targetChapters} capítulos (baseado no tamanho do livro de ${pageCount > 0 ? pageCount + ' páginas' : 'tamanho médio'}). Nem mais, nem menos. Cada capítulo deve cobrir um pilar essencial do livro.
 
 ${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
 
