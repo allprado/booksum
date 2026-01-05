@@ -179,8 +179,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             setProgress(Math.min(100, Math.max(0, scrollProgress)))
             
             // Detecta o capítulo atual baseado na posição de scroll
-            if (chapters.length > 0) {
-                const elements = chapters.map(ch => document.getElementById(ch.id)).filter(Boolean)
+            if (playerChapters.length > 0) {
+                const elements = playerChapters.map(ch => document.getElementById(ch.id)).filter(Boolean)
                 let closestIdx = 0
                 let closestDistance = Infinity
                 
@@ -204,7 +204,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             content.addEventListener('scroll', handleScroll)
             return () => content.removeEventListener('scroll', handleScroll)
         }
-    }, [chapters])
+    }, [playerChapters])
 
     // Gerenciar áudio do miniplayer
     useEffect(() => {
@@ -347,7 +347,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     const scrollToChapter = (chapterIndex) => {
         if (!contentRef.current) return
         
-        const chapterId = chapters[chapterIndex]?.id
+        // Usa playerChapters ao invés de chapters, pois é de onde vem o índice
+        const chapterId = playerChapters[chapterIndex]?.id
         if (!chapterId) return
         
         // Ativa flag para impedir que o scroll listener interfira
@@ -366,10 +367,13 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             element.scrollIntoView({ behavior: 'smooth', block: 'start' })
             setShowIndex(false)
             
-            // Desativa a flag após a animação de scroll terminar (300ms é um tempo seguro)
+            // Desativa a flag após a animação de scroll terminar (1 segundo para garantir)
             manualSelectionTimeoutRef.current = setTimeout(() => {
                 isManualSelectionRef.current = false
-            }, 300)
+            }, 1000)
+        } else {
+            console.warn(`Elemento com ID ${chapterId} não encontrado`)
+            isManualSelectionRef.current = false
         }
     }
 
