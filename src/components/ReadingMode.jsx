@@ -194,6 +194,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                         closestIdx = i
                     }
                 }
+                console.log(`[scroll] scrollTop: ${scrollTop}, detected index: ${closestIdx}, chapter:`, playerChapters[closestIdx]?.title)
                 setCurrentChapter(closestIdx)
             }
         }
@@ -344,11 +345,14 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     }
 
     const scrollToChapter = (chapterIndex) => {
-        if (!contentRef.current) return
+        if (!playerChapters.length) return
+        if (chapterIndex < 0 || chapterIndex >= playerChapters.length) return
         
-        // Usa playerChapters ao invés de chapters, pois é de onde vem o índice
-        const chapterId = playerChapters[chapterIndex]?.id
+        const chapter = playerChapters[chapterIndex]
+        const chapterId = chapter?.id
         if (!chapterId) return
+        
+        console.log(`[scrollToChapter] Index: ${chapterIndex}, Chapter:`, chapter)
         
         // Ativa flag para impedir que o scroll listener interfira
         isManualSelectionRef.current = true
@@ -362,10 +366,13 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         setCurrentChapter(chapterIndex)
         
         const element = document.getElementById(chapterId)
+        console.log(`[scrollToChapter] Looking for element with id: ${chapterId}, found:`, element ? 'YES' : 'NO')
+        
         if (element) {
             const container = contentRef.current
             const offsetCompensation = 80
             const targetTop = element.offsetTop - offsetCompensation
+            console.log(`[scrollToChapter] Element offsetTop: ${element.offsetTop}, targetTop: ${targetTop}`)
             container.scrollTo({ top: targetTop, behavior: 'smooth' })
             setShowIndex(false)
             
