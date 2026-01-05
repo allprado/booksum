@@ -224,10 +224,12 @@ export async function addToUserLibrary(userId, bookId, readingProgress = {}) {
   try {
     const { data, error } = await supabase
       .from('user_libraries')
-      .insert({
+      .upsert({
         user_id: userId,
         book_id: bookId,
         reading_progress: readingProgress,
+      }, {
+        onConflict: 'user_id,book_id'
       })
       .select()
       .single()

@@ -1,15 +1,28 @@
 -- FIX: Corrigir políticas RLS que estão causando erros 406
 
 -- ===============================================
--- PASSO 1: Remover políticas incorretas
+-- PASSO 1: Remover TODAS as políticas existentes
 -- ===============================================
 
+-- Remover políticas antigas
 DROP POLICY IF EXISTS "Books are viewable by everyone" ON books;
 DROP POLICY IF EXISTS "Summaries are viewable by everyone" ON summaries;
 DROP POLICY IF EXISTS "Audio chapters are viewable by everyone" ON audio_chapters;
 DROP POLICY IF EXISTS "Authenticated users can insert books" ON books;
 DROP POLICY IF EXISTS "Authenticated users can insert summaries" ON summaries;
 DROP POLICY IF EXISTS "Authenticated users can insert audio chapters" ON audio_chapters;
+
+-- Remover políticas novas (se já existirem de execuções anteriores)
+DROP POLICY IF EXISTS "books_public_read" ON books;
+DROP POLICY IF EXISTS "books_authenticated_insert" ON books;
+DROP POLICY IF EXISTS "summaries_public_read" ON summaries;
+DROP POLICY IF EXISTS "summaries_authenticated_insert" ON summaries;
+DROP POLICY IF EXISTS "audio_chapters_public_read" ON audio_chapters;
+DROP POLICY IF EXISTS "audio_chapters_authenticated_insert" ON audio_chapters;
+DROP POLICY IF EXISTS "user_libraries_user_read" ON user_libraries;
+DROP POLICY IF EXISTS "user_libraries_user_insert" ON user_libraries;
+DROP POLICY IF EXISTS "user_libraries_user_update" ON user_libraries;
+DROP POLICY IF EXISTS "user_libraries_user_delete" ON user_libraries;
 
 -- ===============================================
 -- PASSO 2: Criar novas políticas RLS corretas
@@ -57,20 +70,54 @@ CREATE POLICY "user_libraries_user_delete" ON user_libraries
   USING (auth.uid() = user_id);
 
 -- ===============================================
--- PASSO 3: Políticas de Storage
+-- PASSO 3: Criar Bucket de Storage (se não existir)
 -- ===============================================
 
--- Execute no painel do Supabase: Storage > audio-chapters > Policies
+-- Acesse Storage > Create bucket no painel do Supabase
+-- Nome: audio-chapters
+-- Make it Public: SIM (marcar a checkbox)
+-- Allowed MIME types: audio/mpeg, audio/mp3, audio/wav
 
--- Adicione estas políticas no painel:
--- 1. Para leitura pública:
--- CREATE POLICY "Public read access" ON storage.objects 
---   FOR SELECT USING (bucket_id = 'audio-chapters');
+-- ===============================================
+-- PASSO 4: Políticas de Storage
+-- ===============================================
 
--- 2. Para upload autenticado:
--- CREATE POLICY "Authenticated upload" ON storage.objects 
---   FOR INSERT WITH CHECK (bucket_id = 'audio-chapters' AND auth.role() = 'authenticated');
+-- IMPORTANTE: Execute estas políticas APÓS criar o bucket!
+-- No painel: Storage > audio-chapters > Policies > New Policy
 
--- 3. Para delete autenticado (permitir que usuários deletem seus próprios arquivos):
--- CREATE POLICY "Authenticated delete" ON storage.objects 
---   FOR DELETE USING (bucket_id = 'audio-chapters' AND auth.role() = 'authenticated');
+-- Remover políticas antigas (se existirem)
+DROP POLICY IF EXISTS "Public read" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated upload" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can update own files" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete own files" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated delete" ON storage.objects;
+
+-- Política 1: Leitura Pública
+CREATE POLICY "Public read" ON storage.objects
+  FOR SELECT USING (bucket_id = 'audio-chapters');
+
+-- Política 2: Upload autenticado
+CREATE POLICY "Authenticated users can upload" ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (
+    bucket_id = 'audio-chapters' 
+    AND auth.role() = 'authenticated'
+  );
+
+-- Política 3: Atualizar arquivos autenticados
+CREATE POLICY "Authenticated users can update own files" ON storage.objects
+  FOR UPDATE TO authenticated USING (
+    bucket_id = 'audio-chapters' 
+    AND auth.role() = 'authenticated'
+  ) WITH CHECK (
+    bucket_id = 'audio-chapters' 
+    AND auth.role() = 'authenticated'
+  );
+
+-- Política 4: Deletar arquivos autenticados
+CREATE POLICY "Authenticated users can delete own files" ON storage.objects
+  FOR DELETE TO authenticated USING (
+    bucket_id = 'audio-chapters' 
+    AND auth.role() = 'authenticated'
+  );
