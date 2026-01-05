@@ -122,6 +122,8 @@ export async function saveSummary(bookId, summaryContent, metadata = {}) {
           ...metadata,
           generated_at: new Date().toISOString()
         }
+      }, { 
+        onConflict: 'book_id' 
       })
       .select()
       .single()

@@ -137,6 +137,7 @@ export function useSupabaseIntegration() {
     checkBooksHaveSummaries,
     getOrCreateBookInDB,
     checkAndLoadSummary,
+    getSummaryFromDB: checkAndLoadSummary, // Alias para leitura de resumo existente
     saveSummaryToDB,
     addBookToLibrary,
     checkAndLoadAudios,

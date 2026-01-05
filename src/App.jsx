@@ -1202,6 +1202,17 @@ Gere o resumo final em português brasileiro:`
             model={summaryModel}
             onModelChange={setSummaryModel}
             showModelSelector={isAdminMode}
+            hasSummary={supabase.booksSummaryStatus[selectedBook.id]}
+            onReadSummary={() => {
+              // Carregar e exibir resumo existente
+              supabase.getSummaryFromDB(supabase.currentBookId).then(data => {
+                if (data) {
+                  setSummary(data.content?.fullText || '')
+                  setView('summary')
+                  showToast('Resumo carregado!', 'success')
+                }
+              })
+            }}
           />
         )}
 

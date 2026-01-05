@@ -1,6 +1,6 @@
 import './BookDetail.css'
 
-function BookDetail({ book, onGenerateSummary, loading, model, onModelChange, showModelSelector = true }) {
+function BookDetail({ book, onGenerateSummary, loading, model, onModelChange, showModelSelector = true, hasSummary = false, onReadSummary }) {
     return (
         <div className="book-detail animate-fadeIn">
             <div className="book-hero">
@@ -95,12 +95,12 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange, sh
                         <span className="material-symbols-rounded">auto_awesome</span>
                     </div>
                     <div className="generate-text">
-                        <h4>Gerar Resumo com IA</h4>
-                        <p>Resumo de ~20 minutos com os principais insights do livro</p>
+                        <h4>{hasSummary ? 'Resumo Disponível' : 'Gerar Resumo com IA'}</h4>
+                        <p>{hasSummary ? 'Clique para ler o resumo gerado' : 'Resumo de ~20 minutos com os principais insights do livro'}</p>
                     </div>
                 </div>
 
-                {showModelSelector && (
+                {!hasSummary && showModelSelector && (
                     <div className="model-selector">
                         <button
                             className={`model-option ${model === 'gemini' ? 'active' : ''}`}
@@ -119,25 +119,39 @@ function BookDetail({ book, onGenerateSummary, loading, model, onModelChange, sh
                     </div>
                 )}
 
-                <button
-                    className="btn btn-accent btn-lg w-full"
-                    onClick={() => onGenerateSummary()}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <>
-                            <span className="btn-spinner"></span>
-                            Gerando resumo...
-                        </>
-                    ) : (
-                        <>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                            </svg>
-                            Gerar Resumo
-                        </>
-                    )}
-                </button>
+                {hasSummary ? (
+                    <button
+                        className="btn btn-accent btn-lg w-full"
+                        onClick={onReadSummary}
+                        disabled={loading}
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                        </svg>
+                        Ler Resumo
+                    </button>
+                ) : (
+                    <button
+                        className="btn btn-accent btn-lg w-full"
+                        onClick={() => onGenerateSummary()}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <>
+                                <span className="btn-spinner"></span>
+                                Gerando resumo...
+                            </>
+                        ) : (
+                            <>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                </svg>
+                                Gerar Resumo
+                            </>
+                        )}
+                    </button>
+                )}
             </div>
         </div>
     )
