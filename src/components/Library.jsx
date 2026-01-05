@@ -20,11 +20,16 @@ function Library({ onSelectBook }) {
 
   if (userLibrary.length === 0) {
     return (
-      <div className="library-empty">
+      <div className="library-empty animate-fadeIn">
         <div className="empty-state">
-          <span className="material-symbols-rounded">library_books</span>
+          <div className="empty-icon-large">
+            <span className="material-symbols-rounded">auto_awesome</span>
+          </div>
           <h3>Sua biblioteca está vazia</h3>
-          <p>Os livros que você resumir aparecerão aqui</p>
+          <p>Explore livros e crie seu primeiro resumo com IA para começar sua jornada de leitura</p>
+          <div className="empty-cta">
+            <p className="cta-hint">💡 Dica: Use a barra de busca na tela inicial para encontrar livros</p>
+          </div>
         </div>
       </div>
     )

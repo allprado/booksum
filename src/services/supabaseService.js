@@ -370,27 +370,3 @@ export async function uploadAudioFile(file, bookId, chapterIndex, voiceId, speec
     return { data: null, error }
   }
 }
-// Atualizar progresso de leitura do usuário
-export async function updateReadingProgress(userId, bookId, progressData) {
-  try {
-    const { data, error } = await supabase
-      .from('user_libraries')
-      .update({
-        reading_progress: progressData,
-        last_read_at: new Date().toISOString()
-      })
-      .eq('user_id', userId)
-      .eq('book_id', bookId)
-      .select()
-
-    if (error) {
-      console.error('Error updating reading progress:', error)
-      return { data: null, error }
-    }
-
-    return { data, error: null }
-  } catch (error) {
-    console.error('Error in updateReadingProgress:', error)
-    return { data: null, error }
-  }
-}

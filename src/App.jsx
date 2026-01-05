@@ -1140,6 +1140,13 @@ Gere o resumo final em português brasileiro:`
       setSummary(null)
       setAudioUrl(null)
       setAudioChapters([])
+    } else if (newView === 'library') {
+      // Verificar autenticação ao acessar biblioteca
+      if (!supabase.user) {
+        setShowLoginRequiredModal(true)
+        return
+      }
+      setView('library')
     } else {
       setView(newView)
     }
@@ -1204,6 +1211,12 @@ Gere o resumo final em português brasileiro:`
             showModelSelector={isAdminMode}
             hasSummary={supabase.booksSummaryStatus[selectedBook.id]}
             onReadSummary={async () => {
+              // Verificar autenticação
+              if (!supabase.user) {
+                setShowLoginRequiredModal(true)
+                return
+              }
+              
               // Carregar e exibir resumo existente
               const data = await supabase.getSummaryFromDB(supabase.currentBookId)
               if (data) {
