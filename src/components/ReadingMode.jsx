@@ -72,18 +72,42 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         if (!safeSummary) return
         
         const extractChapters = () => {
+            const allChapters = []
+            
+            // Procura pela introdução "Por que ler este livro?"
+            const introRegex = /\*{0,2}Por que ler este livro\??\*{0,2}/i
+            const introMatch = safeSummary.match(introRegex)
+            
             // Procura por padrões de capítulos: "**Capítulo X de Y**" ou "Capítulo X de Y"
             const chapterRegex = /\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi
             const matches = [...safeSummary.matchAll(chapterRegex)]
             
+            // Procura pela conclusão "Resumo Final"
+            const conclusionRegex = /\*{0,2}Resumo Final\*{0,2}/i
+            const conclusionMatch = safeSummary.match(conclusionRegex)
+            
             if (matches.length > 0) {
-                const extractedChapters = matches.map((match, index) => {
+                // Adicionar introdução se existir
+                if (introMatch) {
+                    const audioChapter = safeAudioChapters.find(ac => ac.number === 0)
+                    allChapters.push({
+                        id: 'intro',
+                        number: 0,
+                        title: 'Por que ler este livro?',
+                        position: introMatch.index,
+                        audioUrl: audioChapter?.audioUrl || null,
+                        startPos: audioChapter?.startPos || introMatch.index,
+                        endPos: audioChapter?.endPos || matches[0]?.index || null,
+                        isIntro: true
+                    })
+                }
+                
+                // Adicionar capítulos numerados
+                matches.forEach((match, index) => {
                     const chapterNum = parseInt(match[1])
-                    
-                    // Procura se existe audioChapter correspondente
                     const audioChapter = safeAudioChapters.find(ac => ac.number === chapterNum)
                     
-                    return {
+                    allChapters.push({
                         id: `chapter-${index}`,
                         number: chapterNum,
                         total: parseInt(match[2]),
@@ -91,10 +115,27 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                         position: match.index,
                         audioUrl: audioChapter?.audioUrl || null,
                         startPos: audioChapter?.startPos || match.index,
-                        endPos: audioChapter?.endPos || null
-                    }
+                        endPos: audioChapter?.endPos || (matches[index + 1]?.index || null)
+                    })
                 })
-                setChapters(extractedChapters)
+                
+                // Adicionar conclusão se existir
+                if (conclusionMatch) {
+                    const totalChapters = matches.length
+                    const audioChapter = safeAudioChapters.find(ac => ac.number === totalChapters + 1)
+                    allChapters.push({
+                        id: 'conclusion',
+                        number: totalChapters + 1,
+                        title: 'Resumo Final',
+                        position: conclusionMatch.index,
+                        audioUrl: audioChapter?.audioUrl || null,
+                        startPos: audioChapter?.startPos || conclusionMatch.index,
+                        endPos: audioChapter?.endPos || safeSummary.length,
+                        isConclusion: true
+                    })
+                }
+                
+                setChapters(allChapters)
             } else {
                 // Se não encontrar capítulos no formato esperado, tenta encontrar outros títulos em negrito
                 const headingRegex = /\*\*(.*?)\*\*/g
@@ -215,6 +256,9 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
 
         const targetChapter = playerChapters[targetIndex]
         pauseAndResetAudio()
+        
+        // Scroll automático para o capítulo correspondente
+        scrollToChapter(targetIndex)
 
         if (targetChapter.audioUrl) {
             shouldPlayAfterLoadRef.current = true
@@ -249,7 +293,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             if (showToast) {
                 showToast(`Áudio do capítulo ${targetChapter.number} gerado!`, 'success')
             }
-            // O useEffect vai detectar quando o áudio estiver pronto
+            // O useEffect vai detectar quando o áudio estiver pronto e iniciar automaticamente
         } catch (error) {
             if (showToast) {
                 showToast(`Erro ao gerar áudio do capítulo ${targetChapter.number}`, 'error')
@@ -304,12 +348,17 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     const formatText = (text) => {
         // Adiciona IDs aos capítulos para navegação
         let formattedText = text
+            // Adiciona ID para introdução
+            .replace(/\*{0,2}Por que ler este livro\??\*{0,2}/i, '<h2 id="intro" class="reading-h2">Por que ler este livro?</h2>')
+            // Adiciona ID para capítulos numerados
             .replace(/\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi, (match, num, total, title, offset) => {
                 const index = chapters.findIndex(ch => ch.position === offset)
                 const id = index >= 0 ? chapters[index].id : `chapter-${num}`
                 const cleanTitle = title ? title.replace(/\*+/g, '') : ''
                 return `<h2 id="${id}" class="reading-h2">Capítulo ${num} de ${total}${cleanTitle ? ': ' + cleanTitle : ''}</h2>`
             })
+            // Adiciona ID para conclusão
+            .replace(/\*{0,2}Resumo Final\*{0,2}/i, '<h2 id="conclusion" class="reading-h2">Resumo Final</h2>')
             .replace(/\*\*([^*]+)\*\*/g, (match, content, offset) => {
                 // Para outros títulos em negrito que não sejam capítulos
                 const chapter = chapters.find(ch => ch.position === offset && ch.id.startsWith('section-'))
@@ -351,7 +400,15 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 </button>
 
                 <div className="reading-meta">
-                    <span className="reading-time">{Math.ceil(estimatedReadTime * (1 - progress / 100))} min restantes</span>
+                    <span className="reading-time">
+                        {isGeneratingAudio ? (
+                            <>
+                                <span className="generating-spinner">⏳</span> Gerando áudio...
+                            </>
+                        ) : (
+                            `${Math.ceil(estimatedReadTime * (1 - progress / 100))} min restantes`
+                        )}
+                    </span>
                 </div>
 
                 <div className="reading-controls">
@@ -438,14 +495,13 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         // Se o capítulo não tem áudio e podemos gerar, gera sob demanda
                                         if (!chapter.audioUrl && onGenerateChapterAudio && chapter.startPos !== undefined) {
                                             setIsGeneratingAudio(true)
-                                            pendingChapterIndexRef.current = index  // Marca qual capítulo estamos esperando
+                                            pendingChapterIndexRef.current = index
                                             
                                             if (showToast) {
-                                                showToast(`Gerando áudio do capítulo ${chapter.number}...`, 'info', true)
+                                                showToast(`Gerando áudio do ${chapter.isIntro ? 'introdução' : chapter.isConclusion ? 'resumo final' : `capítulo ${chapter.number}`}...`, 'info', true)
                                             }
                                             
                                             try {
-                                                // Calcular endPos se não tiver
                                                 const endPos = chapter.endPos || (chapters[index + 1]?.startPos || safeSummary.length)
                                                 
                                                 await onGenerateChapterAudio({
@@ -457,12 +513,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                 })
                                                 
                                                 if (showToast) {
-                                                    showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
+                                                    showToast(`Áudio do ${chapter.isIntro ? 'introdução' : chapter.isConclusion ? 'resumo final' : `capítulo ${chapter.number}`} gerado!`, 'success')
                                                 }
-                                                // O useEffect vai detectar quando audioChapters for atualizado
+                                                // O useEffect vai detectar quando audioChapters for atualizado e iniciar automaticamente
                                             } catch (error) {
                                                 if (showToast) {
-                                                    showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
+                                                    showToast(`Erro ao gerar áudio`, 'error')
                                                 }
                                                 pendingChapterIndexRef.current = null
                                             } finally {
@@ -471,7 +527,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         }
                                     }}
                                 >
-                                    <span className="index-number">{chapter.number || index + 1}</span>
+                                    <span className="index-number">{chapter.isIntro ? '📖' : chapter.isConclusion ? '✨' : (chapter.number || index + 1)}</span>
                                     <span className="index-title">
                                         {chapter.title}
                                         {chapter.audioUrl && (

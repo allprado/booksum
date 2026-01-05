@@ -719,33 +719,55 @@ Gere o resumo final em português brasileiro:`
       const accessToken = await tokenResponse.text()
 
       // 2. Extrair capítulos do resumo
+      const introRegex = /\*{0,2}Por que ler este livro\??\*{0,2}/i
+      const introMatch = textToUse.match(introRegex)
+      
       const chapterRegex = /\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi
       const matches = [...textToUse.matchAll(chapterRegex)]
       
+      const conclusionRegex = /\*{0,2}Resumo Final\*{0,2}/i
+      const conclusionMatch = textToUse.match(conclusionRegex)
+      
       let chaptersToGenerate = []
       
-      if (matches.length > 0) {
-        // Tem capítulos definidos - gera áudio APENAS para o PRIMEIRO capítulo
+      if (introMatch || matches.length > 0) {
+        // Tem estrutura - gera áudio APENAS para a INTRODUÇÃO (ou primeiro capítulo se não houver introdução)
         if (!wasAutomatic) {
-          showToast(`${matches.length} capítulos detectados. Gerando áudio do primeiro capítulo...`, 'info')
+          showToast('Gerando áudio da introdução...', 'info')
         }
         
-        // Pega apenas o primeiro capítulo
-        const match = matches[0]
-        const chapterNum = parseInt(match[1])
-        const chapterTitle = match[3]?.trim().replace(/\*+/g, '') || `Capítulo ${chapterNum}`
-        const startPos = match.index
-        const endPos = matches.length > 1 ? matches[1].index : textToUse.length
-        
-        const chapterContent = textToUse.substring(startPos, endPos)
-        
-        chaptersToGenerate.push({
-          number: chapterNum,
-          title: chapterTitle,
-          content: chapterContent,
-          startPos,
-          endPos
-        })
+        if (introMatch) {
+          // Gera áudio da introdução
+          const startPos = introMatch.index
+          const endPos = matches.length > 0 ? matches[0].index : (conclusionMatch ? conclusionMatch.index : textToUse.length)
+          const introContent = textToUse.substring(startPos, endPos)
+          
+          chaptersToGenerate.push({
+            number: 0,
+            title: 'Por que ler este livro?',
+            content: introContent,
+            startPos,
+            endPos,
+            isIntro: true
+          })
+        } else if (matches.length > 0) {
+          // Se não tem introdução, gera o primeiro capítulo
+          const match = matches[0]
+          const chapterNum = parseInt(match[1])
+          const chapterTitle = match[3]?.trim().replace(/\*+/g, '') || `Capítulo ${chapterNum}`
+          const startPos = match.index
+          const endPos = matches.length > 1 ? matches[1].index : (conclusionMatch ? conclusionMatch.index : textToUse.length)
+          
+          const chapterContent = textToUse.substring(startPos, endPos)
+          
+          chaptersToGenerate.push({
+            number: chapterNum,
+            title: chapterTitle,
+            content: chapterContent,
+            startPos,
+            endPos
+          })
+        }
       } else {
         // Não tem capítulos - gera um único áudio completo
         if (!wasAutomatic) {
@@ -857,27 +879,63 @@ Gere o resumo final em português brasileiro:`
       setAudioChapters(generatedChapters)
       
       // Se temos mais capítulos que não foram gerados, guardar como pendentes
-      if (matches.length > 1) {
-        const pendingChaptersData = matches.slice(1).map((match, idx) => {
+      const allPendingChapters = []
+      
+      // Se tem introdução e ainda não foi gerada
+      if (introMatch && !generatedChapters.some(ch => ch.number === 0)) {
+        const startPos = introMatch.index
+        const endPos = matches.length > 0 ? matches[0].index : (conclusionMatch ? conclusionMatch.index : textToUse.length)
+        allPendingChapters.push({
+          number: 0,
+          title: 'Por que ler este livro?',
+          content: textToUse.substring(startPos, endPos),
+          startPos,
+          endPos,
+          generated: false,
+          isIntro: true
+        })
+      }
+      
+      // Capítulos numerados pendentes
+      if (matches.length > 0) {
+        const startIdx = generatedChapters[0]?.isIntro ? 0 : 1
+        matches.slice(startIdx).forEach((match, idx) => {
           const chapterNum = parseInt(match[1])
-          const chapterTitle = match[3]?.trim().replace(/\*+/g, '') || `Capítulo ${chapterNum}`
-          const startPos = match.index
-          const endPos = idx < matches.length - 2 ? matches[idx + 2].index : textToUse.length
-          const chapterContent = textToUse.substring(startPos, endPos)
-          
-          return {
-            number: chapterNum,
-            title: chapterTitle,
-            content: chapterContent,
-            startPos,
-            endPos,
-            generated: false
+          if (!generatedChapters.some(ch => ch.number === chapterNum)) {
+            const chapterTitle = match[3]?.trim().replace(/\*+/g, '') || `Capítulo ${chapterNum}`
+            const startPos = match.index
+            const endPos = idx < matches.length - startIdx - 1 ? matches[idx + startIdx + 1].index : (conclusionMatch ? conclusionMatch.index : textToUse.length)
+            const chapterContent = textToUse.substring(startPos, endPos)
+            
+            allPendingChapters.push({
+              number: chapterNum,
+              title: chapterTitle,
+              content: chapterContent,
+              startPos,
+              endPos,
+              generated: false
+            })
           }
         })
-        setPendingChapters(pendingChaptersData)
-      } else {
-        setPendingChapters([])
       }
+      
+      // Se tem conclusão e ainda não foi gerada
+      if (conclusionMatch) {
+        const conclusionNumber = matches.length + 1
+        if (!generatedChapters.some(ch => ch.number === conclusionNumber)) {
+          allPendingChapters.push({
+            number: conclusionNumber,
+            title: 'Resumo Final',
+            content: textToUse.substring(conclusionMatch.index),
+            startPos: conclusionMatch.index,
+            endPos: textToUse.length,
+            generated: false,
+            isConclusion: true
+          })
+        }
+      }
+      
+      setPendingChapters(allPendingChapters)
       
       // Também salva o primeiro capítulo como audioUrl principal para retrocompatibilidade
       if (generatedChapters.length > 0) {

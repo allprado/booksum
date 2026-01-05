@@ -98,6 +98,20 @@
     color: var(--reading-muted);
 }
 
+.generating-spinner {
+    display: inline-block;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
 .reading-controls {
     display: flex;
     gap: var(--space-xs);
@@ -588,6 +602,23 @@
 .mini-play-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+.mini-play-btn svg {
+    animation: none;
+}
+
+.mini-play-btn:disabled svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .mini-ctrl-btn {
