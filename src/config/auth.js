@@ -1,6 +1,6 @@
 /**
  * Detecta a URL correta para redirecionamento OAuth
- * Funciona tanto em desenvolvimento quanto em produção
+ * SEMPRE usa o Supabase como callback, nunca a URL da app diretamente
  */
 export const getAuthRedirectUrl = () => {
   // Se estiver rodando em produção (não localhost), usa a URL atual
@@ -10,8 +10,4 @@ export const getAuthRedirectUrl = () => {
 
   // Em desenvolvimento local, garante que usa a porta correta do Vite (5173)
   return 'http://localhost:5173'
-}
-
-export const getAuthCallbackUrl = () => {
-  return `${getAuthRedirectUrl()}/auth/v1/callback`
 }

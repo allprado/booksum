@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../config/supabase'
-import { getAuthCallbackUrl } from '../config/auth'
+import { getAuthRedirectUrl } from '../config/auth'
 
 const AuthContext = createContext({})
 
@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: getAuthCallbackUrl(),
+        redirectTo: getAuthRedirectUrl(),
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
