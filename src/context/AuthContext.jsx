@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../config/supabase'
+import { getAuthCallbackUrl } from '../config/auth'
 
 const AuthContext = createContext({})
 
@@ -9,23 +10,6 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
-}
-
-// Função para obter a URL correta de redirecionamento
-const getRedirectUrl = () => {
-  // Se foi configurada uma URL explícita, usa ela
-  const configuredUrl = import.meta.env.VITE_APP_URL
-  if (configuredUrl && configuredUrl.trim()) {
-    return configuredUrl
-  }
-  
-  // Em desenvolvimento, usa localhost:5173
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:5173'
-  }
-  
-  // Em produção, usa a URL atual
-  return window.location.origin
 }
 
 export const AuthProvider = ({ children }) => {
@@ -57,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${getRedirectUrl()}/auth/v1/callback`,
+        redirectTo: getAuthCallbackUrl(),
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
