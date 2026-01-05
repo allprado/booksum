@@ -316,9 +316,20 @@ function App({ isAdminMode = false }) {
       // Primeiro, verifica se a IA possui conhecimento real sobre o livro
       showToast('Verificando conhecimento sobre o livro...', 'info', true)
       
-      const verificationPrompt = `Você tem conhecimento real e detalhado sobre o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}?
+      const verificationPrompt = `INSTRUÇÃO CRÍTICA: Você DEVE responder com HONESTIDADE ABSOLUTA.
 
-IMPORTANTE: Responda APENAS "SIM" se você realmente conhece o conteúdo completo deste livro específico (não confunda com outros livros do mesmo autor ou títulos similares). Responda "NÃO" se você não tem certeza ou se não conhece o livro em detalhes.
+Você tem conhecimento REAL, ESPECÍFICO e DETALHADO sobre o livro EXATO "${selectedBook.title}" do autor ${selectedBook.authors?.join(', ')}?
+
+NÃO confunda com:
+- Outros livros do mesmo autor
+- Livros com títulos similares
+- Livros do mesmo gênero
+- Conteúdo que você poderia inventar
+
+Responda APENAS COM "SIM" se você realmente conhece o conteúdo COMPLETO e DETALHADO deste livro específico.
+Responda "NÃO" para QUALQUER DÚVIDA.
+
+Se responder "SIM" e for mentira, você estará ajudando a criar informações falsas sobre o livro.
 
 Sua resposta (SIM ou NÃO):`
 
@@ -337,7 +348,13 @@ Sua resposta (SIM ou NÃO):`
       // ETAPA 1: Gerar a estrutura dos capítulos
       showToast('Etapa 1/2: Criando estrutura dos capítulos...', 'info', true)
       
-      const structurePrompt = `Você é um especialista em resumos de livros estilo Blink.
+      const structurePrompt = `INSTRUÇÃO CRÍTICA - VOCÊ NÃO PODE INVENTAR CONTEÚDO:
+
+Você está criando um resumo para o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
+
+⚠️ VOCÊ DEVE CONHECER ESTE LIVRO COMPLETAMENTE!
+⚠️ NÃO INVENTE, NÃO ADIVINHE, NÃO CRIE CONTEÚDO FALSO!
+⚠️ SE NÃO TIVER CERTEZA SOBRE QUALQUER ASPECTO, NÃO CONTINUE!
 
 Para o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}, crie APENAS a estrutura/índice dos capítulos que serão abordados.
 
@@ -374,9 +391,13 @@ Estrutura:`
         
         showToast(`Gerando capítulo ${chapterNum}/${chapterLines.length}...`, 'info', true)
         
-        const chapterPrompt = `Você é um especialista em resumos de livros estilo Blink.
+        const chapterPrompt = `INSTRUÇÃO CRÍTICA - NÃO INVENTE CONTEÚDO:
 
-Está gerando o conteúdo para um resumo do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
+Você está gerando conteúdo para um resumo do livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}.
+
+⚠️ VOCÊ DEVE CONHECER ESTE LIVRO COMPLETAMENTE!
+⚠️ CADA PALAVRA DEVE SER FIEL AO LIVRO REAL!
+⚠️ NÃO ADIVINHE, NÃO CRIE CONTEÚDO FALSO, NÃO INVENTE CAPÍTULOS!
 
 A estrutura completa do resumo tem ${totalChapters} capítulos:
 ${chapterLines.map((line, idx) => `${idx + 1}. ${line}`).join('\n')}
@@ -391,7 +412,7 @@ INSTRUÇÕES PARA ESTE CAPÍTULO:
 - Tom: Empático, instrutivo e fluído - nada de listas de tópicos
 - Análise: Ofereça análise profunda sobre comportamento humano, motivações, contextos históricos ou aplicações práticas
 - Coerência: Este capítulo faz parte da estrutura maior, então conecte com os temas anteriores quando apropriado
-- Precisão: APENAS informações que estão realmente no livro
+- PRECISÃO ABSOLUTA: APENAS informações que estão REALMENTE no livro. Nada inventado.
 
 ${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
 
@@ -409,16 +430,21 @@ Gere agora o conteúdo detalhado deste capítulo em português brasileiro:`
       // ETAPA 3: Gerar introdução
       showToast('Gerando introdução e finalizando...', 'info', true)
       
-      const introPrompt = `Você é um especialista em resumos de livros estilo Blink.
+      const introPrompt = `INSTRUÇÃO CRÍTICA - VOCÊ NÃO PODE INVENTAR CONTEÚDO:
 
 Para o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}, crie uma INTRODUÇÃO impactante.
 
+⚠️ BASEADA COMPLETAMENTE NO LIVRO REAL!
+⚠️ NÃO INVENTE TEMAS OU CONFLITOS QUE NÃO EXISTEM!
+⚠️ FIDELIDADE TOTAL AO CONTEÚDO ORIGINAL!
+
 Esta introdução será a seção inicial do resumo e deve:
 - Começar com um título chamativo: **Por que ler este livro?**
-- Apresentar a tese central ou conflito principal da obra
+- Apresentar a tese central ou conflito principal da obra (REAL, não inventado)
 - Motivar o leitor a continuar lendo
 - Ter entre 300 e 500 palavras
 - Usar tom empático e envolvente
+- APENAS informações que estão no livro
 
 ${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
 
@@ -426,18 +452,24 @@ Gere a introdução em português brasileiro:`
 
       const introduction = await callAI(introPrompt)
       
+      
       // ETAPA 4: Gerar resumo final
-      const finalSummaryPrompt = `Você é um especialista em resumos de livros estilo Blink.
+      const finalSummaryPrompt = `INSTRUÇÃO CRÍTICA - NÃO INVENTE CONTEÚDO:
 
 Para o livro "${selectedBook.title}" de ${selectedBook.authors?.join(', ')}, crie uma seção de RESUMO FINAL.
+
+⚠️ BASEADA APENAS NO LIVRO REAL!
+⚠️ A MENSAGEM DEVE SER FIEL AO ORIGINAL!
+⚠️ NÃO ADICIONE REFLEXÕES INVENTADAS!
 
 Esta seção deve:
 - Começar com o título: **Resumo Final**
 - Sintetizar em UM PARÁGRAFO a mensagem mais duradoura do livro
 - Ser impactante e memorável
-- Conectar os temas principais abordados
-- Deixar o leitor com uma reflexão valiosa
+- Conectar os temas principais abordados (que realmente existem no livro)
+- Deixar o leitor com uma reflexão valiosa (baseada no livro)
 - Ter entre 150 e 250 palavras
+- APENAS informações que estão no livro
 
 ${selectedBook.description ? `\n\nDescrição do livro: ${selectedBook.description}` : ''}
 
