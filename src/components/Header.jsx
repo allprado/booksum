@@ -91,16 +91,19 @@ function Header({ onBack, onHome, showLogo }) {
                         </button>
 
                         {showProfileMenu && user && (
-                            <div className="profile-menu">
-                                <div className="profile-info">
-                                    <p className="profile-name">{user.user_metadata?.full_name || 'Usuário'}</p>
-                                    <p className="profile-email">{user.email}</p>
+                            <>
+                                <div className="profile-menu-backdrop" onClick={() => setShowProfileMenu(false)} />
+                                <div className="profile-menu">
+                                    <div className="profile-info">
+                                        <p className="profile-name">{user.user_metadata?.full_name || 'Usuário'}</p>
+                                        <p className="profile-email">{user.email}</p>
+                                    </div>
+                                    <button className="profile-menu-item" onClick={handleSignOut}>
+                                        <span className="material-symbols-rounded">logout</span>
+                                        Sair
+                                    </button>
                                 </div>
-                                <button className="profile-menu-item" onClick={handleSignOut}>
-                                    <span className="material-symbols-rounded">logout</span>
-                                    Sair
-                                </button>
-                            </div>
+                            </>
                         )}
                     </div>
                 </div>

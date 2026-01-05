@@ -1243,11 +1243,8 @@ Gere o resumo final em português brasileiro:`
                 showToast('Erro ao fazer login. Tente novamente.', 'error')
               }
             },
-            isPrimary: true
-          },
-          {
-            label: 'Cancelar',
-            onClick: () => setShowLoginRequiredModal(false)
+            isPrimary: true,
+            isGoogle: true
           }
         ]}
       />

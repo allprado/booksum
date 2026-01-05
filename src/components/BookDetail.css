@@ -1,7 +1,10 @@
 .book-detail {
-    max-width: 480px;
+    width: 100%;
+    height: 100%;
     margin: 0 auto;
     padding-bottom: var(--space-xl);
+    display: flex;
+    flex-direction: column;
 }
 
 .book-hero {

@@ -1,6 +1,11 @@
 .recommended-books-view {
+  width: 100%;
+  height: 100%;
   padding: 20px;
   padding-bottom: 80px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .recommended-header {

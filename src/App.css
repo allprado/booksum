@@ -12,9 +12,12 @@
 
 .main-content {
   flex: 1;
+  width: 100%;
   padding: var(--space-lg);
   padding-bottom: calc(140px + env(safe-area-inset-bottom));
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Hero Section */

@@ -133,6 +133,29 @@
     background-color: #e5e7eb;
 }
 
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    background-color: #ffffff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-google:hover {
+    background-color: #f9fafb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
 /* Animações */
 @keyframes fadeIn {
     from {
