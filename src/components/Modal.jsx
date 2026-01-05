@@ -72,7 +72,9 @@ function Modal({ isOpen, title, message, type = 'info', onClose, showCloseButton
 
                 <div className="modal-content">
                     {typeof message === 'string' ? (
-                        <p>{message}</p>
+                        message.split('\n').map((paragraph, index) => (
+                            paragraph.trim() ? <p key={index}>{paragraph}</p> : <br key={index} />
+                        ))
                     ) : (
                         message
                     )}
