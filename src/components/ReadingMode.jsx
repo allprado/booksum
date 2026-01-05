@@ -111,7 +111,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     const audioChapter = safeAudioChapters.find(ac => ac.number === chapterNum)
                     
                     allChapters.push({
-                        id: `chapter-${index}`,
+                        id: `chapter-${chapterNum}`,
                         number: chapterNum,
                         total: parseInt(match[2]),
                         title: match[3].trim().replace(/\*+/g, '') || `Capítulo ${match[1]}`,
@@ -194,7 +194,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                         closestIdx = i
                     }
                 }
-                console.log(`[scroll] scrollTop: ${scrollTop}, detected index: ${closestIdx}, chapter:`, playerChapters[closestIdx]?.title)
                 setCurrentChapter(closestIdx)
             }
         }
@@ -352,8 +351,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         const chapterId = chapter?.id
         if (!chapterId) return
         
-        console.log(`[scrollToChapter] Index: ${chapterIndex}, Chapter:`, chapter)
-        
         // Ativa flag para impedir que o scroll listener interfira
         isManualSelectionRef.current = true
         
@@ -366,13 +363,11 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         setCurrentChapter(chapterIndex)
         
         const element = document.getElementById(chapterId)
-        console.log(`[scrollToChapter] Looking for element with id: ${chapterId}, found:`, element ? 'YES' : 'NO')
         
         if (element) {
             const container = contentRef.current
             const offsetCompensation = 80
             const targetTop = element.offsetTop - offsetCompensation
-            console.log(`[scrollToChapter] Element offsetTop: ${element.offsetTop}, targetTop: ${targetTop}`)
             container.scrollTo({ top: targetTop, behavior: 'smooth' })
             setShowIndex(false)
             
@@ -381,7 +376,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 isManualSelectionRef.current = false
             }, 1500)
         } else {
-            console.warn(`Elemento com ID ${chapterId} não encontrado`)
             isManualSelectionRef.current = false
         }
     }
