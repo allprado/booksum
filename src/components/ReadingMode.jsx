@@ -51,6 +51,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 pendingChapterIndexRef.current = null
                 shouldPlayAfterLoadRef.current = true
                 setCurrentChapter(pendingIndex)
+                setMiniPlayerOpen(true) // Abrir o mini-player automaticamente
                 
                 if (audioRef.current) {
                     audioRef.current.load()
@@ -175,14 +176,21 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 const elements = chapters.map(ch => document.getElementById(ch.id)).filter(Boolean)
                 let currentIdx = 0
                 
+                // Encontra qual capítulo está mais próximo do topo visível
+                let closestIdx = 0
+                let closestDistance = Infinity
+                
                 for (let i = 0; i < elements.length; i++) {
                     const rect = elements[i].getBoundingClientRect()
-                    if (rect.top <= 200) { // 200px de margem do topo
-                        currentIdx = i
+                    const distance = Math.abs(rect.top - 100) // 100px do topo
+                    
+                    if (distance < closestDistance) {
+                        closestDistance = distance
+                        closestIdx = i
                     }
                 }
                 
-                setCurrentChapter(currentIdx)
+                setCurrentChapter(closestIdx)
             }
         }
 
@@ -212,15 +220,29 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 })
             }
         }
+        const handleCanPlay = () => {
+            // Se devemos tocar e ainda não tocou, toca agora
+            if (shouldPlayAfterLoadRef.current) {
+                shouldPlayAfterLoadRef.current = false
+                audio.play().then(() => {
+                    setIsAudioPlaying(true)
+                }).catch(err => {
+                    console.error('Erro ao reproduzir áudio:', err)
+                    setIsAudioPlaying(false)
+                })
+            }
+        }
         const handleEnded = () => setIsAudioPlaying(false)
 
         audio.addEventListener('timeupdate', handleTimeUpdate)
         audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+        audio.addEventListener('canplay', handleCanPlay)
         audio.addEventListener('ended', handleEnded)
 
         return () => {
             audio.removeEventListener('timeupdate', handleTimeUpdate)
             audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+            audio.removeEventListener('canplay', handleCanPlay)
             audio.removeEventListener('ended', handleEnded)
         }
     }, [])
@@ -403,7 +425,11 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                     <span className="reading-time">
                         {isGeneratingAudio ? (
                             <>
-                                <span className="generating-spinner">⏳</span> Gerando áudio...
+                                <svg className="generating-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 6 12 12 16 14" />
+                                </svg>
+                                {' '}Gerando áudio...
                             </>
                         ) : (
                             `${Math.ceil(estimatedReadTime * (1 - progress / 100))} min restantes`
@@ -660,7 +686,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                             onClick={() => handleChapterChange(idx)}
                                             disabled={isGeneratingAudio}
                                         >
-                                            {chapter.number}
+                                            {chapter.isIntro ? 'I' : chapter.isConclusion ? 'C' : chapter.number}
                                         </button>
                                     ))}
                                 </div>

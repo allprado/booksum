@@ -96,11 +96,16 @@
 .reading-time {
     font-size: 0.875rem;
     color: var(--reading-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .generating-spinner {
     display: inline-block;
-    animation: pulse 1.5s ease-in-out infinite;
+    animation: spin 2s linear infinite;
+    min-width: 16px;
+    color: var(--color-primary);
 }
 
 @keyframes pulse {
