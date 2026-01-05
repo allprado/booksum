@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Header from './components/Header'
 import SearchBar from './components/SearchBar'
 import BookList from './components/BookList'
@@ -8,9 +8,12 @@ import RecommendedBooks from './components/RecommendedBooks'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Modal from './components/Modal'
+import { useSupabaseIntegration } from './hooks/useSupabaseIntegration'
 import './App.css'
 
 function App({ isAdminMode = false }) {
+  const supabase = useSupabaseIntegration()
+  
   const [view, setView] = useState('home') // home, detail, summary
   const [books, setBooks] = useState([])
   const [selectedBook, setSelectedBook] = useState(null)
@@ -205,8 +208,15 @@ function App({ isAdminMode = false }) {
         setBooks(formattedBooks)
         setCurrentQuery(query)
         setCurrentPage(1)
+        // Verificar quais livros têm resumo no Supabase
+        supabase.checkBooksHaveSummaries(formattedBooks)
       } else {
-        setBooks(prev => [...prev, ...formattedBooks])
+        setBooks(prev => {
+          const newBooks = [...prev, ...formattedBooks]
+          // Verificar novos livros também
+          supabase.checkBooksHaveSummaries(formattedBooks)
+          return newBooks
+        })
         setCurrentPage(pageNum)
       }
       setHasMoreResults(hasMore)
@@ -224,7 +234,7 @@ function App({ isAdminMode = false }) {
         setLoading(false)
       }
     }
-  }, [searchSource, showToast, isAdminMode])
+  }, [searchSource, showToast, isAdminMode, supabase])
 
   const handleLoadMore = useCallback(() => {
     if (currentQuery && !loading) {
@@ -232,11 +242,26 @@ function App({ isAdminMode = false }) {
     }
   }, [currentQuery, currentPage, loading, handleSearch])
 
-  const handleSelectBook = (book) => {
+  const handleSelectBook = async (book) => {
     setSelectedBook(book)
     setSummary(null)
     setAudioUrl(null)
+    setAudioChapters([])
     setView('detail')
+
+    // Tentar buscar/criar o livro no banco e verificar se tem resumo
+    const bookId = await supabase.getOrCreateBookInDB(book)
+    if (bookId) {
+      // Verificar se já existe resumo
+      const existingSummary = await supabase.checkAndLoadSummary(bookId)
+      if (existingSummary) {
+        // Se já existe, podemos pré-carregar os áudios também
+        const existingAudios = await supabase.checkAndLoadAudios(bookId, selectedVoice, speechRate)
+        if (existingAudios.length > 0) {
+          setAudioChapters(existingAudios)
+        }
+      }
+    }
   }
 
   const handleGenerateSummary = async () => {
@@ -575,6 +600,39 @@ Gere o resumo final em português brasileiro:`
         setSummary(cleanedSummary)
         setView('summary')
         showToast('Conteúdo gerado com sucesso!', 'success')
+        
+        // Salvar resumo no Supabase
+        if (supabase.currentBookId) {
+          const summaryData = {
+            chapters: chapterContents.map((content, idx) => ({
+              index: idx,
+              content: content.trim()
+            })),
+            introduction: introduction.trim(),
+            finalSummary: finalSummarySection.trim(),
+            fullText: cleanedSummary
+          }
+          
+          await supabase.saveSummaryToDB(
+            supabase.currentBookId,
+            summaryData,
+            {
+              googleBooksId: selectedBook.id,
+              model: effectiveModel,
+              generatedBy: supabase.user?.id || 'anonymous'
+            }
+          )
+          
+          // Se o usuário estiver autenticado, adicionar à biblioteca
+          if (supabase.user) {
+            try {
+              await supabase.addBookToLibrary(supabase.currentBookId)
+            } catch (error) {
+              // Pode já estar na biblioteca, ignorar erro
+              console.log('Livro já na biblioteca ou erro ao adicionar:', error)
+            }
+          }
+        }
         
         // Gerar automaticamente áudio do primeiro capítulo
         setLoading(true)
@@ -926,10 +984,37 @@ Gere o resumo final em português brasileiro:`
         const audioBlob = new Blob([combinedBuffer], { type: 'audio/mpeg' })
         const chapterAudioUrl = URL.createObjectURL(audioBlob)
         
+        // Upload para Supabase Storage se possível
+        let publicAudioUrl = chapterAudioUrl
+        if (supabase.currentBookId && supabase.user) {
+          const uploadedUrl = await supabase.uploadAudio(
+            audioBlob,
+            supabase.currentBookId,
+            chapter.number,
+            selectedVoice,
+            speechRate
+          )
+          
+          if (uploadedUrl) {
+            publicAudioUrl = uploadedUrl
+            
+            // Salvar metadata do áudio no banco
+            await supabase.saveAudioToDB(supabase.currentBookId, {
+              chapterIndex: chapter.number,
+              title: chapter.title,
+              audioUrl: uploadedUrl,
+              voiceId: selectedVoice,
+              speechRate: speechRate,
+              duration: null, // Pode calcular depois
+              fileSize: audioBlob.size
+            })
+          }
+        }
+        
         generatedChapters.push({
           number: chapter.number,
           title: chapter.title,
-          audioUrl: chapterAudioUrl,
+          audioUrl: publicAudioUrl,
           startPos: chapter.startPos,
           endPos: chapter.endPos
         })
@@ -1079,6 +1164,7 @@ Gere o resumo final em português brasileiro:`
                 hasMoreResults={hasMoreResults}
                 onLoadMore={handleLoadMore}
                 isLoadingMore={loading && !isSearching}
+                booksSummaryStatus={supabase.booksSummaryStatus}
               />
             )}
           </div>

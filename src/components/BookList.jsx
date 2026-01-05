@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './BookList.css'
 
-function BookList({ books, onSelectBook, loading, hasMoreResults, onLoadMore, isLoadingMore }) {
+function BookList({ books, onSelectBook, loading, hasMoreResults, onLoadMore, isLoadingMore, booksSummaryStatus = {} }) {
     const [failedImages, setFailedImages] = useState(new Set())
 
     const handleImageError = (bookId) => {
@@ -43,6 +43,13 @@ function BookList({ books, onSelectBook, loading, hasMoreResults, onLoadMore, is
                         style={{ animationDelay: `${index * 0.05}s` }}
                     >
                         <div className="book-cover-wrapper">
+                            {booksSummaryStatus[book.id] && (
+                                <div className="summary-badge">
+                                    <span className="material-symbols-rounded">check_circle</span>
+                                    <span>Resumo disponível</span>
+                                </div>
+                            )}
+                            
                             {book.thumbnail && !failedImages.has(book.id) ? (
                                 <img
                                     src={book.thumbnail}
