@@ -247,69 +247,129 @@ function App({ isAdminMode = false }) {
     // No modo público, força o uso do Gemini
     const effectiveModel = isAdminMode ? summaryModel : 'gemini'
 
-    // Helper para chamar a API (Gemini ou OpenRouter)
-    const callAI = async (promptText) => {
-      if (effectiveModel === 'gemini') {
-        const geminiKey = import.meta.env.VITE_GOOGLE_API_KEY
-        if (!geminiKey || geminiKey === 'sua_chave_google_aqui') {
-          throw new Error('Configure sua API Key do Google (Gemini) no arquivo .env')
-        }
+    // Helper para chamar a API (Gemini ou OpenRouter) com retry automático
+    const callAI = async (promptText, retryCount = 0, maxRetries = 3) => {
+      try {
+        if (effectiveModel === 'gemini') {
+          const geminiKey = import.meta.env.VITE_GOOGLE_API_KEY
+          if (!geminiKey || geminiKey === 'sua_chave_google_aqui') {
+            throw new Error('Configure sua API Key do Google (Gemini) no arquivo .env')
+          }
 
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 min timeout
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 min timeout
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: promptText }] }],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 8192,
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }],
+              generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 8192,
+              }
+            }),
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            const errorMessage = errorData.error?.message || `Erro na API Gemini: ${response.status}`
+            
+            // Se for erro 503 (overloaded) e ainda temos retries, tenta novamente
+            if (response.status === 503 && retryCount < maxRetries) {
+              const delay = Math.pow(2, retryCount + 1) * 1000 // Backoff exponencial: 2s, 4s, 8s
+              showToast(`Modelo sobrecarregado. Tentando novamente em ${delay / 1000}s (tentativa ${retryCount + 1}/${maxRetries})...`, 'info', true)
+              await new Promise(r => setTimeout(r, delay))
+              return callAI(promptText, retryCount + 1, maxRetries)
             }
-          }),
-          signal: controller.signal
-        })
-        clearTimeout(timeoutId)
+            
+            throw new Error(errorMessage)
+          }
+          const data = await response.json()
+          return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+        } else {
+          // OpenRouter
+          const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
+          if (!apiKey || apiKey === 'sua_chave_openrouter_aqui') throw new Error('Configure sua API key do OpenRouter no arquivo .env')
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error?.message || `Erro na API Gemini: ${response.status}`)
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 120000)
+
+          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+              'HTTP-Referer': window.location.origin,
+              'X-Title': 'BookSum'
+            },
+            body: JSON.stringify({
+              model: 'xiaomi/mimo-v2-flash:free',
+              messages: [{ role: 'user', content: promptText }]
+            }),
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            const errorMessage = errorData.error?.message || `Erro na API: ${response.status}`
+            
+            // Se for erro 503 e ainda temos retries, tenta novamente
+            if (response.status === 503 && retryCount < maxRetries) {
+              const delay = Math.pow(2, retryCount + 1) * 1000
+              showToast(`API sobrecarregada. Tentando novamente em ${delay / 1000}s (tentativa ${retryCount + 1}/${maxRetries})...`, 'info', true)
+              await new Promise(r => setTimeout(r, delay))
+              return callAI(promptText, retryCount + 1, maxRetries)
+            }
+            
+            throw new Error(errorMessage)
+          }
+          const data = await response.json()
+          return data.choices[0]?.message?.content || ''
         }
-        const data = await response.json()
-        return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-      } else {
-        // OpenRouter
-        const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
-        if (!apiKey || apiKey === 'sua_chave_openrouter_aqui') throw new Error('Configure sua API key do OpenRouter no arquivo .env')
+      } catch (error) {
+        // Se falhar com o modelo configurado e estamos em Gemini, tenta OpenRouter como fallback
+        if (effectiveModel === 'gemini' && retryCount === 0) {
+          showToast('Gemini indisponível. Tentando com OpenRouter...', 'info', true)
+          try {
+            const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY
+            if (apiKey && apiKey !== 'sua_chave_openrouter_aqui') {
+              const controller = new AbortController()
+              const timeoutId = setTimeout(() => controller.abort(), 120000)
 
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 120000)
+              const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${apiKey}`,
+                  'HTTP-Referer': window.location.origin,
+                  'X-Title': 'BookSum'
+                },
+                body: JSON.stringify({
+                  model: 'xiaomi/mimo-v2-flash:free',
+                  messages: [{ role: 'user', content: promptText }]
+                }),
+                signal: controller.signal
+              })
+              clearTimeout(timeoutId)
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'BookSum'
-          },
-          body: JSON.stringify({
-            model: 'xiaomi/mimo-v2-flash:free',
-            messages: [{ role: 'user', content: promptText }]
-          }),
-          signal: controller.signal
-        })
-        clearTimeout(timeoutId)
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error?.message || `Erro na API: ${response.status}`)
+              if (response.ok) {
+                const data = await response.json()
+                showToast('OpenRouter disponível! Usando este serviço...', 'success')
+                return data.choices[0]?.message?.content || ''
+              }
+            }
+          } catch (fallbackError) {
+            console.error('Fallback para OpenRouter falhou:', fallbackError)
+          }
         }
-        const data = await response.json()
-        return data.choices[0]?.message?.content || ''
+        
+        throw error
       }
     }
 
