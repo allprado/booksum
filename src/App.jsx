@@ -5,6 +5,7 @@ import BookList from './components/BookList'
 import BookDetail from './components/BookDetail'
 import SummaryView from './components/SummaryView'
 import RecommendedBooks from './components/RecommendedBooks'
+import Library from './components/Library'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Modal from './components/Modal'
@@ -1197,6 +1198,12 @@ Gere o resumo final em português brasileiro:`
 
         {view === 'recommended' && (
           <RecommendedBooks
+            onSelectBook={handleSelectBook}
+          />
+        )}
+
+        {view === 'library' && (
+          <Library
             onSelectBook={handleSelectBook}
           />
         )}

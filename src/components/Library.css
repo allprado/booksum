@@ -62,9 +62,9 @@
 .empty-cta {
     margin-top: var(--space-lg);
     padding: var(--space-md);
-    background: rgba(var(--accent-color-rgb), 0.1);
+    background: rgba(255, 200, 87, 0.1);
     border-radius: 8px;
-    border-left: 3px solid var(--accent-color);
+    border-left: 3px solid var(--color-accent);
 }
 
 .cta-hint {
