@@ -1203,15 +1203,24 @@ Gere o resumo final em português brasileiro:`
             onModelChange={setSummaryModel}
             showModelSelector={isAdminMode}
             hasSummary={supabase.booksSummaryStatus[selectedBook.id]}
-            onReadSummary={() => {
+            onReadSummary={async () => {
               // Carregar e exibir resumo existente
-              supabase.getSummaryFromDB(supabase.currentBookId).then(data => {
-                if (data) {
-                  setSummary(data.content?.fullText || '')
-                  setView('summary')
-                  showToast('Resumo carregado!', 'success')
+              const data = await supabase.getSummaryFromDB(supabase.currentBookId)
+              if (data) {
+                setSummary(data.content?.fullText || '')
+                setView('summary')
+                showToast('Resumo carregado!', 'success')
+                
+                // Adicionar livro à biblioteca se o usuário estiver autenticado
+                if (supabase.user) {
+                  try {
+                    await supabase.addBookToLibrary(supabase.currentBookId)
+                  } catch (error) {
+                    // Livro pode já estar na biblioteca, ignorar erro
+                    console.log('Livro já na biblioteca:', error)
+                  }
                 }
-              })
+              }
             }}
           />
         )}
@@ -1224,6 +1233,11 @@ Gere o resumo final em português brasileiro:`
             audioChapters={audioChapters}
             onGenerateChapterAudio={handleGenerateChapterAudio}
             showToast={showToast}
+            onUpdateProgress={(progress) => {
+              if (supabase.user && supabase.currentBookId) {
+                supabase.updateReadingProgress(supabase.currentBookId, progress)
+              }
+            }}
           />
         )}
       </main>

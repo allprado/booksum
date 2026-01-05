@@ -124,6 +124,21 @@ export function useSupabaseIntegration() {
     return userLibrary.some(item => item.book_id === bookId)
   }
 
+  // Atualizar progresso de leitura
+  const updateReadingProgress = async (bookId, progressData) => {
+    try {
+      const { data, error } = await supabaseService.updateReadingProgress(user.id, bookId, progressData)
+      if (error) {
+        console.error('Erro ao atualizar progresso:', error)
+        return false
+      }
+      return true
+    } catch (error) {
+      console.error('Erro ao atualizar progresso:', error)
+      return false
+    }
+  }
+
   // Carregar biblioteca quando usuário mudar
   useEffect(() => {
     loadUserLibrary()
@@ -144,6 +159,7 @@ export function useSupabaseIntegration() {
     saveAudioToDB,
     uploadAudio,
     isInLibrary,
+    updateReadingProgress,
     loadUserLibrary,
   }
 }

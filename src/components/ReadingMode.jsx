@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import './ReadingMode.css'
 
-function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio, showToast }) {
+function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio, showToast, onUpdateProgress }) {
     const [fontSize, setFontSize] = useState(18)
     const [theme, setTheme] = useState('dark') // dark, light, sepia
     const [progress, setProgress] = useState(0)
@@ -401,6 +401,21 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             }
         }
     }, [])
+
+    // Salvar progresso de leitura periodicamente
+    useEffect(() => {
+        if (!onUpdateProgress) return
+
+        const saveProgressInterval = setInterval(() => {
+            onUpdateProgress({
+                scrollProgress: progress,
+                currentChapter: currentChapter,
+                timestamp: new Date().toISOString()
+            })
+        }, 10000) // Salva a cada 10 segundos
+
+        return () => clearInterval(saveProgressInterval)
+    }, [progress, currentChapter, onUpdateProgress])
 
     const formatText = (text) => {
         // Adiciona IDs aos capítulos para navegação
