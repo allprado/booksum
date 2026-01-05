@@ -8,11 +8,13 @@ import RecommendedBooks from './components/RecommendedBooks'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Modal from './components/Modal'
+import { useAuth } from './context/AuthContext'
 import { useSupabaseIntegration } from './hooks/useSupabaseIntegration'
 import './App.css'
 
 function App({ isAdminMode = false }) {
   const supabase = useSupabaseIntegration()
+  const { signInWithGoogle } = useAuth()
   
   const [view, setView] = useState('home') // home, detail, summary
   const [books, setBooks] = useState([])
@@ -39,6 +41,9 @@ function App({ isAdminMode = false }) {
   // Modal para aviso de falta de conhecimento
   const [showKnowledgeWarning, setShowKnowledgeWarning] = useState(false)
   const [knowledgeWarningMessage, setKnowledgeWarningMessage] = useState('')
+
+  // Modal para pedir login ao gerar resumo
+  const [showLoginRequiredModal, setShowLoginRequiredModal] = useState(false)
 
   const availableVoices = [
     { id: 'pt-BR-FranciscaNeural', label: 'Francisca (Feminina)', gender: 'Female' },
@@ -266,6 +271,12 @@ function App({ isAdminMode = false }) {
 
   const handleGenerateSummary = async () => {
     if (!selectedBook) return
+
+    // Verificar se o usuário está autenticado
+    if (!supabase.user) {
+      setShowLoginRequiredModal(true)
+      return
+    }
 
     setLoading(true)
 
@@ -1212,6 +1223,33 @@ Gere o resumo final em português brasileiro:`
         onRetry={() => handleGenerateSummary()}
         retryButtonText="Tentar Novamente"
         showCloseButton={true}
+      />
+
+      <Modal
+        isOpen={showLoginRequiredModal}
+        title="Fazer Login"
+        message="Para gerar um resumo, você precisa fazer login com sua conta Google."
+        type="info"
+        onClose={() => setShowLoginRequiredModal(false)}
+        actions={[
+          {
+            label: 'Continuar com Google',
+            onClick: async () => {
+              try {
+                await signInWithGoogle()
+                setShowLoginRequiredModal(false)
+              } catch (error) {
+                console.error('Erro ao fazer login:', error)
+                showToast('Erro ao fazer login. Tente novamente.', 'error')
+              }
+            },
+            isPrimary: true
+          },
+          {
+            label: 'Cancelar',
+            onClick: () => setShowLoginRequiredModal(false)
+          }
+        ]}
       />
 
       {loading && (

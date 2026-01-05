@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import './Modal.css'
 
-function Modal({ isOpen, title, message, type = 'info', onClose, showCloseButton = true, onRetry = null, retryButtonText = 'Tentar Novamente' }) {
+function Modal({ isOpen, title, message, type = 'info', onClose, showCloseButton = true, onRetry = null, retryButtonText = 'Tentar Novamente', actions = null }) {
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden'
@@ -88,17 +88,31 @@ function Modal({ isOpen, title, message, type = 'info', onClose, showCloseButton
 
                 {showCloseButton && (
                     <div className="modal-footer">
-                        {onRetry && (
-                            <button className="btn btn-accent" onClick={() => {
-                                onClose()
-                                onRetry()
-                            }}>
-                                {retryButtonText}
-                            </button>
+                        {actions ? (
+                            actions.map((action, index) => (
+                                <button 
+                                    key={index}
+                                    className={action.isPrimary ? 'btn btn-primary' : 'btn btn-secondary'}
+                                    onClick={action.onClick}
+                                >
+                                    {action.label}
+                                </button>
+                            ))
+                        ) : (
+                            <>
+                                {onRetry && (
+                                    <button className="btn btn-accent" onClick={() => {
+                                        onClose()
+                                        onRetry()
+                                    }}>
+                                        {retryButtonText}
+                                    </button>
+                                )}
+                                <button className="btn btn-primary" onClick={onClose}>
+                                    {onRetry ? 'Cancelar' : 'Entendi'}
+                                </button>
+                            </>
                         )}
-                        <button className="btn btn-primary" onClick={onClose}>
-                            {onRetry ? 'Cancelar' : 'Entendi'}
-                        </button>
                     </div>
                 )}
             </div>

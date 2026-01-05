@@ -123,6 +123,16 @@
     font-weight: 600;
 }
 
+.btn-secondary {
+    background-color: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.btn-secondary:hover {
+    background-color: #e5e7eb;
+}
+
 /* Animações */
 @keyframes fadeIn {
     from {
