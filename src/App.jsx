@@ -287,37 +287,65 @@ function App({ isAdminMode = false }) {
       return
     }
 
+    setLoading(true)
     setSelectedBook(book)
     setSummary(null)
     setAudioUrl(null)
     setAudioChapters([])
     setSelectedBookHasSummary(false)
     
-    // Se o livro já veio da biblioteca com resumo carregado, usa direto
-    if (book.summaries && book.summaries.length > 0) {
-      const existing = book.summaries[0]?.content
-      if (existing?.fullText) {
-        setSelectedBookHasSummary(true)
-        setSummary(existing.fullText)
-        setView('summary')
-        showToast('Resumo carregado!', 'success')
-        return
+    try {
+      // Se o livro já veio da biblioteca com resumo carregado, usa direto
+      if (book.summaries && book.summaries.length > 0) {
+        const existing = book.summaries[0]?.content
+        if (existing?.fullText) {
+          setSelectedBookHasSummary(true)
+          setSummary(existing.fullText)
+          
+          // Tentar carregar áudios também
+          const bookId = book.id // ID do Supabase
+          if (bookId) {
+            const existingAudios = await supabase.checkAndLoadAudios(bookId, selectedVoice, speechRate)
+            if (existingAudios.length > 0) {
+              setAudioChapters(existingAudios)
+            }
+          }
+          
+          setView('summary')
+          showToast('Resumo carregado!', 'success')
+          setLoading(false)
+          return
+        }
       }
-    }
 
-    // Caso contrário, buscar no Supabase
-    const bookId = await supabase.getOrCreateBookInDB(book)
-    if (bookId) {
-      const data = await supabase.getSummaryFromDB(bookId)
-      if (data) {
-        setSelectedBookHasSummary(true)
-        setSummary(data.content?.fullText || '')
-        setView('summary')
-        showToast('Resumo carregado!', 'success')
-        return
+      // Caso contrário, buscar no Supabase
+      const bookId = await supabase.getOrCreateBookInDB(book)
+      if (bookId) {
+        const data = await supabase.getSummaryFromDB(bookId)
+        if (data) {
+          setSelectedBookHasSummary(true)
+          setSummary(data.content?.fullText || '')
+          
+          // Tentar carregar áudios também
+          const existingAudios = await supabase.checkAndLoadAudios(bookId, selectedVoice, speechRate)
+          if (existingAudios.length > 0) {
+            setAudioChapters(existingAudios)
+          }
+          
+          setView('summary')
+          showToast('Resumo carregado!', 'success')
+          setLoading(false)
+          return
+        }
       }
+      
+      showToast('Resumo não encontrado para este livro.', 'error')
+      setLoading(false)
+    } catch (error) {
+      console.error('Erro ao carregar resumo:', error)
+      showToast('Erro ao carregar resumo', 'error')
+      setLoading(false)
     }
-    showToast('Resumo não encontrado para este livro.', 'error')
   }
 
   // Deletar livro da biblioteca
