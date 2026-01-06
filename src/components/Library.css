@@ -213,6 +213,115 @@
     color: var(--text-muted);
 }
 
+.library-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    position: relative;
+}
+
+.library-menu-wrapper {
+    position: relative;
+}
+
+.library-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.library-menu-btn:hover {
+    background: rgba(255, 200, 87, 0.1);
+    color: var(--color-accent);
+}
+
+.library-menu-btn .material-symbols-rounded {
+    font-size: 1.25rem;
+}
+
+.library-menu-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99;
+}
+
+.library-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    min-width: 160px;
+    background: rgba(42, 35, 65, 0.95);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-sm) 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    z-index: 100;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.library-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    font-size: 0.9375rem;
+    text-align: left;
+}
+
+.library-menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.library-menu-item .material-symbols-rounded {
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.library-menu-item.delete-item:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.library-menu-item.delete-item:hover .material-symbols-rounded {
+    color: #ef4444;
+}
+
+.library-menu-item.delete-item:hover {
+    color: #ef4444;
+}
+
 @media (min-width: 768px) {
     .library-grid {
         grid-template-columns: repeat(3, 1fr);

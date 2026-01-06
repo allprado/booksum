@@ -370,3 +370,23 @@ export async function uploadAudioFile(file, bookId, chapterIndex, voiceId, speec
     return { data: null, error }
   }
 }
+// Remover livro da biblioteca do usuário
+export async function removeFromUserLibrary(userLibraryId) {
+  try {
+    const { data, error } = await supabase
+      .from('user_libraries')
+      .delete()
+      .eq('id', userLibraryId)
+      .select()
+
+    if (error) {
+      console.error('Error removing from user library:', error)
+      return { data: null, error }
+    }
+
+    return { data, error: null }
+  } catch (error) {
+    console.error('Error in removeFromUserLibrary:', error)
+    return { data: null, error }
+  }
+}

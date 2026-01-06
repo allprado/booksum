@@ -139,6 +139,23 @@ export function useSupabaseIntegration() {
     }
   }
 
+  // Remover livro da biblioteca do usuário
+  const removeFromLibrary = async (userLibraryId) => {
+    try {
+      const { data, error } = await supabaseService.removeFromUserLibrary(userLibraryId)
+      if (!error) {
+        // Recarregar biblioteca
+        await loadUserLibrary()
+        return true
+      }
+      console.error('Erro ao remover da biblioteca:', error)
+      return false
+    } catch (error) {
+      console.error('Erro ao remover da biblioteca:', error)
+      return false
+    }
+  }
+
   // Carregar biblioteca quando usuário mudar
   useEffect(() => {
     loadUserLibrary()
@@ -155,6 +172,7 @@ export function useSupabaseIntegration() {
     getSummaryFromDB: checkAndLoadSummary, // Alias para leitura de resumo existente
     saveSummaryToDB,
     addBookToLibrary,
+    removeFromLibrary,
     checkAndLoadAudios,
     saveAudioToDB,
     uploadAudio,

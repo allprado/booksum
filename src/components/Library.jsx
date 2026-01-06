@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useSupabaseIntegration } from '../hooks/useSupabaseIntegration'
 import './Library.css'
 
-function Library({ onSelectBook }) {
+function Library({ onSelectBook, onReadSummary, onDeleteFromLibrary }) {
   const { user } = useAuth()
-  const { userLibrary } = useSupabaseIntegration()
+  const { userLibrary, checkAndLoadSummary } = useSupabaseIntegration()
+  const [openMenuId, setOpenMenuId] = useState(null)
 
   if (!user) {
     return (
@@ -46,14 +48,17 @@ function Library({ onSelectBook }) {
       <div className="library-grid">
         {userLibrary.map((item, index) => {
           const book = item.books
+          const hasSummary = book.summaries?.[0]
           return (
             <div
               key={item.id}
               className="library-card"
-              onClick={() => onSelectBook(book)}
               style={{ animationDelay: `${index * 0.05}s` }}
             >
-              <div className="library-cover-wrapper">
+              <div 
+                className="library-cover-wrapper"
+                onClick={() => onSelectBook(book)}
+              >
                 {book.thumbnail ? (
                   <img
                     src={book.thumbnail}
@@ -67,7 +72,7 @@ function Library({ onSelectBook }) {
                   </div>
                 )}
                 
-                {book.summaries?.[0] && (
+                {hasSummary && (
                   <div className="summary-indicator">
                     <span className="material-symbols-rounded">summarize</span>
                   </div>
@@ -86,6 +91,65 @@ function Library({ onSelectBook }) {
                       month: 'short'
                     })}
                   </span>
+                  
+                  <div className="library-menu-wrapper">
+                    <button
+                      className="library-menu-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpenMenuId(openMenuId === item.id ? null : item.id)
+                      }}
+                      aria-label="Menu do livro"
+                    >
+                      <span className="material-symbols-rounded">more_vert</span>
+                    </button>
+
+                    {openMenuId === item.id && (
+                      <>
+                        <div 
+                          className="library-menu-backdrop"
+                          onClick={() => setOpenMenuId(null)}
+                        />
+                        <div className="library-menu">
+                          {hasSummary && (
+                            <button
+                              className="library-menu-item"
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(null)
+                                onReadSummary(item.id, book)
+                              }}
+                            >
+                              <span className="material-symbols-rounded">auto_stories</span>
+                              Ler
+                            </button>
+                          )}
+                          <button
+                            className="library-menu-item"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenMenuId(null)
+                              onSelectBook(book)
+                            }}
+                          >
+                            <span className="material-symbols-rounded">info</span>
+                            Ver Detalhes
+                          </button>
+                          <button
+                            className="library-menu-item delete-item"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenMenuId(null)
+                              onDeleteFromLibrary(item.id, book.title)
+                            }}
+                          >
+                            <span className="material-symbols-rounded">delete</span>
+                            Excluir
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

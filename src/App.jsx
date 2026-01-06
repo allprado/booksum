@@ -273,6 +273,49 @@ function App({ isAdminMode = false }) {
     }
   }
 
+  // Ler resumo da biblioteca
+  const handleReadSummaryFromLibrary = async (libraryItemId, book) => {
+    // Verificar autenticação
+    if (!supabase.user) {
+      setShowLoginRequiredModal(true)
+      return
+    }
+
+    setSelectedBook(book)
+    setSummary(null)
+    setAudioUrl(null)
+    setAudioChapters([])
+    setSelectedBookHasSummary(false)
+
+    const bookId = await supabase.getOrCreateBookInDB(book)
+    if (bookId) {
+      // Carregar o resumo
+      const data = await supabase.getSummaryFromDB(bookId)
+      if (data) {
+        setSummary(data.content?.fullText || '')
+        setView('summary')
+        showToast('Resumo carregado!', 'success')
+      }
+    }
+  }
+
+  // Deletar livro da biblioteca
+  const handleDeleteFromLibrary = async (libraryItemId, bookTitle) => {
+    if (confirm(`Tem certeza que deseja remover "${bookTitle}" da sua biblioteca?`)) {
+      try {
+        const success = await supabase.removeFromLibrary(libraryItemId)
+        if (success) {
+          showToast('Livro removido da biblioteca', 'success')
+          // Recarregar a biblioteca
+          await supabase.loadUserLibrary()
+        }
+      } catch (error) {
+        console.error('Erro ao remover livro:', error)
+        showToast('Erro ao remover livro', 'error')
+      }
+    }
+  }
+
   const handleGenerateSummary = async () => {
     if (!selectedBook) return
 
@@ -1208,6 +1251,8 @@ Gere o resumo final em português brasileiro:`
         {view === 'library' && (
           <Library
             onSelectBook={handleSelectBook}
+            onReadSummary={handleReadSummaryFromLibrary}
+            onDeleteFromLibrary={handleDeleteFromLibrary}
           />
         )}
 
