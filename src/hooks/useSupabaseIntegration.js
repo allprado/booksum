@@ -52,11 +52,11 @@ export function useSupabaseIntegration() {
     return null
   }
 
-  // Verificar se existe resumo no banco
+  // Verificar se existe resumo no banco (retorna a linha completa)
   const checkAndLoadSummary = async (bookId) => {
     const { data, error } = await supabaseService.getSummary(bookId)
     if (!error && data) {
-      return data.content // Retorna o conteúdo do resumo
+      return data // Contém { content, metadata, ... }
     }
     return null
   }
