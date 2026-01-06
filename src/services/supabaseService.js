@@ -251,27 +251,59 @@ export async function addToUserLibrary(userId, bookId, readingProgress = {}) {
 // Buscar biblioteca do usuário
 export async function getUserLibrary(userId) {
   try {
-    const { data, error } = await supabase
+    const { data: libraryItems, error: libraryError } = await supabase
       .from('user_libraries')
-      .select(`
-        *,
-        books (
-          *,
-          summaries (
-            id,
-            created_at
-          )
-        )
-      `)
+      .select('*')
       .eq('user_id', userId)
       .order('added_at', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching user library:', error)
-      return { data: null, error }
+    if (libraryError) {
+      console.error('Error fetching user library:', libraryError)
+      return { data: null, error: libraryError }
     }
 
-    return { data, error: null }
+    if (!libraryItems || libraryItems.length === 0) {
+      return { data: [], error: null }
+    }
+
+    // Buscar os livros relacionados
+    const bookIds = libraryItems.map(item => item.book_id)
+    const { data: books, error: booksError } = await supabase
+      .from('books')
+      .select('*')
+      .in('id', bookIds)
+
+    if (booksError) {
+      console.error('Error fetching books:', booksError)
+      return { data: null, error: booksError }
+    }
+
+    // Buscar os resumos para estes livros
+    const { data: summaries, error: summariesError } = await supabase
+      .from('summaries')
+      .select('*')
+      .in('book_id', bookIds)
+
+    if (summariesError) {
+      console.error('Error fetching summaries:', summariesError)
+      // Não é crítico se falhar, continuamos sem resumos
+    }
+
+    // Montar o resultado combinando tudo
+    const result = libraryItems.map(item => {
+      const book = books.find(b => b.id === item.book_id)
+      const bookSummaries = summaries?.filter(s => s.book_id === item.book_id) || []
+      
+      return {
+        ...item,
+        books: {
+          ...book,
+          summaries: bookSummaries
+        }
+      }
+    })
+
+    return { data: result, error: null }
   } catch (error) {
     console.error('Error in getUserLibrary:', error)
     return { data: null, error }

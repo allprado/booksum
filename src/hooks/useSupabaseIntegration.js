@@ -59,6 +59,10 @@ export function useSupabaseIntegration() {
     if (!error) {
       // Atualizar status de que o livro tem resumo
       setBooksSummaryStatus(prev => ({ ...prev, [metadata.googleBooksId]: true }))
+      // Recarregar biblioteca do usuário se autenticado
+      if (user) {
+        await loadUserLibrary()
+      }
       return data
     }
     console.error('Erro ao salvar resumo:', error)
