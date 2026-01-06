@@ -287,19 +287,24 @@ function App({ isAdminMode = false }) {
       return
     }
 
+    console.log('handleReadSummaryFromLibrary chamado com book:', book)
+    
     // Limpar estados antes de carregar
     setSelectedBook(book)
     setSummary(null)
     setAudioUrl(null)
     setAudioChapters([])
     setSelectedBookHasSummary(false)
-    setLoading(true)
     
     try {
       // Se o livro já veio da biblioteca com resumo carregado, usa direto
       if (book.summaries && book.summaries.length > 0) {
         const existing = book.summaries[0]?.content
+        console.log('Resumo encontrado no payload:', existing)
+        
         if (existing?.fullText) {
+          console.log('Abrindo resumo direto do payload')
+          // Definir tudo PRIMEIRO
           setSummary(existing.fullText)
           setSelectedBookHasSummary(true)
           
@@ -312,18 +317,24 @@ function App({ isAdminMode = false }) {
             }
           }
           
-          setLoading(false)
-          setView('summary') // Mudar view APÓS carregar tudo
+          // Usar setTimeout para garantir que setState foi processado
+          setTimeout(() => {
+            console.log('Mudando para view summary')
+            setView('summary')
+          }, 100)
+          
           showToast('Resumo carregado!', 'success')
           return
         }
       }
 
       // Caso contrário, buscar no Supabase
+      console.log('Buscando resumo no Supabase')
       const bookId = await supabase.getOrCreateBookInDB(book)
       if (bookId) {
         const data = await supabase.getSummaryFromDB(bookId)
         if (data) {
+          console.log('Resumo encontrado no Supabase:', data)
           setSummary(data.content?.fullText || '')
           setSelectedBookHasSummary(true)
           
@@ -333,18 +344,20 @@ function App({ isAdminMode = false }) {
             setAudioChapters(existingAudios)
           }
           
-          setLoading(false)
-          setView('summary') // Mudar view APÓS carregar tudo
+          setTimeout(() => {
+            console.log('Mudando para view summary')
+            setView('summary')
+          }, 100)
+          
           showToast('Resumo carregado!', 'success')
           return
         }
       }
       
-      setLoading(false)
+      console.log('Resumo não encontrado')
       showToast('Resumo não encontrado para este livro.', 'error')
     } catch (error) {
       console.error('Erro ao carregar resumo:', error)
-      setLoading(false)
       showToast('Erro ao carregar resumo', 'error')
     }
   }
