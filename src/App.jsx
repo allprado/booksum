@@ -257,6 +257,12 @@ function App({ isAdminMode = false }) {
     setSelectedBookHasSummary(false) // Reset
     setView('detail')
 
+    // Verificar se o livro já vem com resumos (ex: da biblioteca)
+    if (book.summaries && book.summaries.length > 0) {
+      setSelectedBookHasSummary(true)
+      return
+    }
+
     // Tentar buscar/criar o livro no banco e verificar se tem resumo
     const bookId = await supabase.getOrCreateBookInDB(book)
     if (bookId) {

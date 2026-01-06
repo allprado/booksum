@@ -149,7 +149,20 @@ export async function getSummary(bookId) {
       .eq('book_id', bookId)
       .single()
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (error) {
+      // PGRST116 = no rows returned (normal)
+      // 406 = RLS policy issue (precisa aplicar supabase-fix-rls.sql)
+      if (error.code === 'PGRST116') {
+        // Sem resumo é normal
+        return { data: null, error: null }
+      }
+      
+      if (error.status === 406) {
+        console.error('❌ RLS Policy Error (406):', error)
+        console.error('⚠️  Execute supabase-fix-rls.sql no SQL Editor do Supabase')
+        return { data: null, error: { ...error, message: 'RLS policy issue - see console for instructions' } }
+      }
+      
       console.error('Error fetching summary:', error)
       return { data: null, error }
     }
