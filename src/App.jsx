@@ -292,17 +292,32 @@ function App({ isAdminMode = false }) {
     setAudioUrl(null)
     setAudioChapters([])
     setSelectedBookHasSummary(false)
+    
+    // Se o livro já veio da biblioteca com resumo carregado, usa direto
+    if (book.summaries && book.summaries.length > 0) {
+      const existing = book.summaries[0]?.content
+      if (existing?.fullText) {
+        setSelectedBookHasSummary(true)
+        setSummary(existing.fullText)
+        setView('summary')
+        showToast('Resumo carregado!', 'success')
+        return
+      }
+    }
 
+    // Caso contrário, buscar no Supabase
     const bookId = await supabase.getOrCreateBookInDB(book)
     if (bookId) {
-      // Carregar o resumo
       const data = await supabase.getSummaryFromDB(bookId)
       if (data) {
+        setSelectedBookHasSummary(true)
         setSummary(data.content?.fullText || '')
         setView('summary')
         showToast('Resumo carregado!', 'success')
+        return
       }
     }
+    showToast('Resumo não encontrado para este livro.', 'error')
   }
 
   // Deletar livro da biblioteca
