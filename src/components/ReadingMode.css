@@ -1,11 +1,17 @@
 .reading-mode {
     position: fixed;
-    inset: 0;
+    top: 0;
+    bottom: 0;
     z-index: var(--z-modal);
     display: flex;
     flex-direction: column;
     animation: fadeIn 0.3s ease;
-}
+    max-width: 1100px;
+    margin: 0 auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    right: auto;
 
 /* Theme Variations - Define variables first */
 .reading-mode.theme-dark {
@@ -45,11 +51,13 @@
 .reading-progress-bar {
     position: fixed;
     top: 0;
-    left: 0;
-    right: 0;
     height: 3px;
     background: rgba(0, 0, 0, 0.2);
     z-index: 10;
+    width: 100%;
+    max-width: 1100px;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .reading-progress-fill {
@@ -154,9 +162,6 @@
     padding-bottom: calc(var(--space-3xl) + 60px);
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
-    max-width: 1100px;
-    margin: 0 auto;
-    width: 100%;
 }
 
 .reading-book-header {
