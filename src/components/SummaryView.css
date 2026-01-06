@@ -261,3 +261,256 @@
         transform: scale(1.05);
     }
 }
+
+/* ==========================================
+   TABLET & DESKTOP RESPONSIVE STYLES
+   ========================================== */
+
+/* Tablet */
+@media (min-width: 768px) {
+    .summary-view {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .summary-header {
+        padding: var(--space-xl);
+        border-radius: var(--radius-2xl);
+    }
+    
+    .summary-book-info {
+        gap: var(--space-lg);
+    }
+    
+    .summary-book-cover {
+        width: 80px;
+        height: 120px;
+    }
+    
+    .summary-book-title {
+        font-size: 1.25rem;
+    }
+    
+    .summary-book-author {
+        font-size: 1rem;
+    }
+    
+    .summary-stats {
+        gap: var(--space-xl);
+    }
+    
+    .stat {
+        padding: var(--space-lg);
+    }
+    
+    .stat-value {
+        font-size: 1.75rem;
+    }
+    
+    .stat-label {
+        font-size: 0.8125rem;
+    }
+    
+    .tab-container {
+        gap: var(--space-md);
+        padding: var(--space-sm);
+    }
+    
+    .tab {
+        padding: var(--space-md) var(--space-lg);
+        font-size: 1rem;
+    }
+    
+    .text-content {
+        min-height: 500px;
+    }
+    
+    .summary-preview {
+        padding: var(--space-xl);
+        max-height: 500px;
+    }
+    
+    .summary-text {
+        font-size: 1rem;
+        line-height: 1.9;
+    }
+    
+    .summary-text h3 {
+        font-size: 1.25rem;
+    }
+    
+    .audio-content {
+        min-height: 500px;
+    }
+    
+    .audio-generate {
+        padding: var(--space-2xl);
+    }
+    
+    .audio-icon {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .audio-generate h3 {
+        font-size: 1.5rem;
+    }
+    
+    .audio-features {
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .feature {
+        padding: var(--space-md);
+        font-size: 0.9375rem;
+    }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+    .summary-view {
+        max-width: 900px;
+    }
+    
+    .summary-header {
+        padding: var(--space-2xl);
+    }
+    
+    .summary-book-info {
+        gap: var(--space-xl);
+        margin-bottom: var(--space-xl);
+    }
+    
+    .summary-book-cover {
+        width: 100px;
+        height: 150px;
+        transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+    }
+    
+    .summary-book-cover:hover {
+        transform: scale(1.05);
+    }
+    
+    .summary-book-title {
+        font-size: 1.375rem;
+    }
+    
+    .summary-stats {
+        gap: var(--space-2xl);
+    }
+    
+    .stat {
+        padding: var(--space-lg) var(--space-xl);
+        border-radius: var(--radius-xl);
+        transition: all var(--transition-normal);
+    }
+    
+    .stat:hover {
+        background: var(--bg-tertiary);
+        transform: translateY(-2px);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+    }
+    
+    .tab-container {
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+        border-radius: var(--radius-xl);
+    }
+    
+    .tab {
+        padding: var(--space-md) var(--space-xl);
+        font-size: 1.0625rem;
+        border-radius: var(--radius-lg);
+    }
+    
+    .tab:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .summary-preview {
+        padding: var(--space-2xl);
+        border-radius: var(--radius-2xl);
+        max-height: 600px;
+    }
+    
+    .summary-text {
+        font-size: 1.0625rem;
+    }
+    
+    .summary-text h3 {
+        font-size: 1.375rem;
+    }
+    
+    .audio-generate {
+        padding: var(--space-3xl);
+        border-radius: var(--radius-2xl);
+    }
+    
+    .audio-icon {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .audio-generate h3 {
+        font-size: 1.75rem;
+    }
+    
+    .audio-features {
+        max-width: 500px;
+    }
+}
+
+/* Large Desktop */
+@media (min-width: 1280px) {
+    .summary-view {
+        max-width: 1000px;
+    }
+    
+    .summary-header {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: var(--space-2xl);
+    }
+    
+    .summary-book-info {
+        margin-bottom: 0;
+    }
+    
+    .summary-stats {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: flex-end;
+    }
+    
+    .stat-value {
+        font-size: 2.25rem;
+    }
+}
+
+/* Extra Large Desktop */
+@media (min-width: 1440px) {
+    .summary-view {
+        max-width: 1100px;
+    }
+    
+    .summary-book-cover {
+        width: 120px;
+        height: 180px;
+    }
+    
+    .summary-book-title {
+        font-size: 1.5rem;
+    }
+    
+    .summary-text {
+        font-size: 1.125rem;
+        line-height: 2;
+    }
+}

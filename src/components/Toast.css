@@ -74,3 +74,54 @@
 .toast-info .toast-icon {
     color: var(--color-info);
 }
+
+/* ==========================================
+   TABLET & DESKTOP RESPONSIVE STYLES
+   ========================================== */
+
+/* Tablet */
+@media (min-width: 768px) {
+    .toast {
+        padding: var(--space-md) var(--space-xl);
+        border-radius: var(--radius-xl);
+    }
+    
+    .toast-message {
+        font-size: 1rem;
+    }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+    .toast {
+        bottom: auto;
+        top: calc(var(--space-xl) + 80px);
+        left: auto;
+        right: var(--space-xl);
+        transform: none;
+        padding: var(--space-lg) var(--space-xl);
+    }
+    
+    @keyframes toastIn {
+        from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .toast-message {
+        font-size: 1.0625rem;
+    }
+}
+
+/* Large Desktop */
+@media (min-width: 1440px) {
+    .toast {
+        right: var(--space-2xl);
+        padding: var(--space-lg) var(--space-2xl);
+    }
+}

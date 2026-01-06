@@ -63,3 +63,110 @@
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
+/* ==========================================
+   TABLET & DESKTOP RESPONSIVE STYLES
+   ========================================== */
+
+/* Tablet - Navigation stays bottom but larger */
+@media (min-width: 768px) {
+    .bottom-nav {
+        max-width: 600px;
+        padding: var(--space-lg);
+    }
+    
+    .bottom-nav-content {
+        gap: var(--space-2xl);
+        padding: var(--space-lg) var(--space-3xl);
+        border-radius: var(--radius-3xl);
+    }
+    
+    .nav-item {
+        padding: var(--space-md) var(--space-xl);
+        min-width: 90px;
+    }
+    
+    .nav-item .material-symbols-rounded {
+        font-size: 1.625rem;
+    }
+    
+    .nav-label {
+        font-size: 0.8125rem;
+    }
+}
+
+/* Desktop - Side Navigation */
+@media (min-width: 1024px) {
+    .bottom-nav {
+        position: fixed;
+        bottom: auto;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: auto;
+        max-width: none;
+        padding: var(--space-md);
+        z-index: var(--z-dropdown);
+    }
+    
+    .bottom-nav-content {
+        flex-direction: column;
+        gap: var(--space-md);
+        padding: var(--space-lg);
+        border-radius: var(--radius-2xl);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    }
+    
+    .nav-item {
+        padding: var(--space-md);
+        min-width: auto;
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius-xl);
+        transition: all var(--transition-normal);
+    }
+    
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: scale(1.05);
+    }
+    
+    .nav-item.active {
+        background: rgba(224, 107, 44, 0.15);
+    }
+    
+    .nav-item .material-symbols-rounded {
+        font-size: 1.75rem;
+    }
+    
+    .nav-label {
+        font-size: 0.6875rem;
+        margin-top: 2px;
+    }
+}
+
+/* Large Desktop - Larger side nav */
+@media (min-width: 1440px) {
+    .bottom-nav {
+        padding: var(--space-lg);
+    }
+    
+    .bottom-nav-content {
+        padding: var(--space-xl);
+        gap: var(--space-lg);
+    }
+    
+    .nav-item {
+        width: 80px;
+        height: 80px;
+        padding: var(--space-lg);
+    }
+    
+    .nav-item .material-symbols-rounded {
+        font-size: 2rem;
+    }
+    
+    .nav-label {
+        font-size: 0.75rem;
+    }
+}

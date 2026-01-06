@@ -119,9 +119,99 @@
 @media (min-width: 768px) {
   .main-content {
     padding: var(--space-xl);
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
   }
 
   .hero-section {
     padding: var(--space-lg) 0;
+    margin-bottom: var(--space-2xl);
+  }
+  
+  .hero-title {
+    font-size: 3.5rem;
+  }
+  
+  .hero-subtitle {
+    font-size: 1.25rem;
+    max-width: 400px;
+  }
+  
+  .empty-state {
+    padding: var(--space-3xl) var(--space-xl);
+  }
+  
+  .empty-icon {
+    width: 160px;
+    height: 160px;
+  }
+  
+  .empty-state p {
+    font-size: 1.125rem;
+    max-width: 320px;
+  }
+}
+
+/* Tablet Landscape & Desktop */
+@media (min-width: 1024px) {
+  .app {
+    max-width: 100%;
+  }
+  
+  .main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-xl);
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+    /* Account for side navigation */
+    padding-left: calc(var(--space-xl) + 100px);
+  }
+  
+  .hero-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-xl) 0;
+    margin-bottom: var(--space-3xl);
+  }
+  
+  .hero-title {
+    font-size: clamp(3rem, 5vw, 4rem);
+  }
+  
+  .hero-subtitle {
+    font-size: 1.375rem;
+    max-width: 500px;
+  }
+  
+  .loading-content {
+    gap: var(--space-xl);
+  }
+  
+  .spinner-large {
+    width: 80px;
+    height: 80px;
+    border-width: 5px;
+  }
+  
+  .loading-content p {
+    font-size: 1.125rem;
+  }
+}
+
+/* Large Desktop */
+@media (min-width: 1440px) {
+  .main-content {
+    max-width: 1400px;
+    padding: var(--space-3xl) var(--space-2xl);
+    padding-left: calc(var(--space-2xl) + 120px);
+  }
+  
+  .hero-title {
+    font-size: 4.5rem;
+  }
+  
+  .hero-subtitle {
+    font-size: 1.5rem;
+    max-width: 600px;
   }
 }
