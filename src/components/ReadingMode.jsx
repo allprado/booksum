@@ -314,6 +314,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     }
 
     const handleAudioProgressBarClick = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
         if (!audioRef.current || audioDuration === 0) return
         const progressBar = progressBarRef.current
         if (!progressBar) return
@@ -328,6 +330,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     }
 
     const handleAudioProgressBarMouseDown = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
         setIsDraggingAudioBar(true)
         handleAudioProgressBarClick(e)
     }
@@ -820,7 +824,9 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         ref={progressBarRef}
                                         className="mini-player-progress-bar"
                                         onMouseDown={handleAudioProgressBarMouseDown}
+                                        onClick={handleAudioProgressBarClick}
                                         onTouchStart={(e) => {
+                                            e.preventDefault()
                                             setIsDraggingAudioBar(true)
                                             const touch = e.touches[0]
                                             const progressBar = progressBarRef.current
