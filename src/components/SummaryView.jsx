@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import ReadingMode from './ReadingMode'
 import './SummaryView.css'
 
@@ -7,20 +7,10 @@ function SummaryView({
     summary,
     audioUrl,
     audioChapters,
-    autoOpenReadingMode = false,
     onGenerateChapterAudio,
-    showToast,
-    onUpdateProgress,
-    savedProgress = null
+    showToast
 }) {
     const [showReadingMode, setShowReadingMode] = useState(false)
-
-    // Abre o modo leitura automaticamente quando solicitado pelo pai (ex: vindo da biblioteca)
-    useEffect(() => {
-        if (autoOpenReadingMode) {
-            setShowReadingMode(true)
-        }
-    }, [autoOpenReadingMode])
 
     const estimatedReadTime = Math.ceil(summary.length / 1250) // ~200 words per minute
     const characterCount = summary.length
@@ -35,8 +25,6 @@ function SummaryView({
                 onGenerateChapterAudio={onGenerateChapterAudio}
                 onClose={() => setShowReadingMode(false)}
                 showToast={showToast}
-                onUpdateProgress={onUpdateProgress}
-                savedProgress={savedProgress}
             />
         )
     }
@@ -82,6 +70,8 @@ function SummaryView({
                 </div>
 
                 <div className="summary-actions">
+                    <p className="summary-audio-hint">O áudio agora é reproduzido dentro do leitor. Abra o modo leitura para ouvir e navegar pelos capítulos.</p>
+
                     <button
                         className="btn btn-primary btn-lg w-full"
                         onClick={() => setShowReadingMode(true)}

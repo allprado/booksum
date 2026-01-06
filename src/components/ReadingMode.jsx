@@ -1,26 +1,24 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import './ReadingMode.css'
 
-function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio, showToast, onUpdateProgress, savedProgress = null }) {
+function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio, showToast }) {
     const [fontSize, setFontSize] = useState(18)
     const [theme, setTheme] = useState('dark') // dark, light, sepia
-    const [progress, setProgress] = useState(savedProgress?.scrollProgress || 0)
+    const [progress, setProgress] = useState(0)
     const [showIndex, setShowIndex] = useState(false)
     const [chapters, setChapters] = useState([])
-    const [currentChapter, setCurrentChapter] = useState(savedProgress?.currentChapter || 0)
+    const [currentChapter, setCurrentChapter] = useState(0)
     const [miniPlayerOpen, setMiniPlayerOpen] = useState(false)
     const [isAudioPlaying, setIsAudioPlaying] = useState(false)
     const [currentAudioTime, setCurrentAudioTime] = useState(0)
     const [audioDuration, setAudioDuration] = useState(0)
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
-    const [isDraggingAudioBar, setIsDraggingAudioBar] = useState(false)
     const audioRef = useRef(null)
     const contentRef = useRef(null)
     const progressBarRef = useRef(null)
+    const seekingRef = useRef(false)
     const shouldPlayAfterLoadRef = useRef(false)
     const pendingChapterIndexRef = useRef(null)
-    const isManualSelectionRef = useRef(false)
-    const manualSelectionTimeoutRef = useRef(null)
 
     // Verificação de segurança para o summary
     const safeSummary = summary || ''
@@ -53,9 +51,8 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             
             if (chapter && chapter.audioUrl) {
                 pendingChapterIndexRef.current = null
-                shouldPlayAfterLoadRef.current = true // Sempre toca automaticamente quando um capítulo pendente fica pronto
+                shouldPlayAfterLoadRef.current = true
                 setCurrentChapter(pendingIndex)
-                setMiniPlayerOpen(true) // Abrir o mini-player automaticamente
                 
                 if (audioRef.current) {
                     audioRef.current.load()
@@ -77,70 +74,29 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         if (!safeSummary) return
         
         const extractChapters = () => {
-            const allChapters = []
-            
-            // Procura pela introdução "Por que ler este livro?"
-            const introRegex = /\*{0,2}Por que ler este livro\??\*{0,2}/i
-            const introMatch = safeSummary.match(introRegex)
-            
             // Procura por padrões de capítulos: "**Capítulo X de Y**" ou "Capítulo X de Y"
             const chapterRegex = /\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi
             const matches = [...safeSummary.matchAll(chapterRegex)]
             
-            // Procura pela conclusão "Resumo Final"
-            const conclusionRegex = /\*{0,2}Resumo Final\*{0,2}/i
-            const conclusionMatch = safeSummary.match(conclusionRegex)
-            
             if (matches.length > 0) {
-                // Adicionar introdução se existir
-                if (introMatch) {
-                    const audioChapter = safeAudioChapters.find(ac => ac.number === 0)
-                    allChapters.push({
-                        id: 'intro',
-                        number: 0,
-                        title: 'Por que ler este livro?',
-                        position: introMatch.index,
-                        audioUrl: audioChapter?.audioUrl || null,
-                        startPos: audioChapter?.startPos || introMatch.index,
-                        endPos: audioChapter?.endPos || matches[0]?.index || null,
-                        isIntro: true
-                    })
-                }
-                
-                // Adicionar capítulos numerados
-                matches.forEach((match, index) => {
+                const extractedChapters = matches.map((match, index) => {
                     const chapterNum = parseInt(match[1])
+                    
+                    // Procura se existe audioChapter correspondente
                     const audioChapter = safeAudioChapters.find(ac => ac.number === chapterNum)
                     
-                    allChapters.push({
-                        id: `chapter-${chapterNum}`,
+                    return {
+                        id: `chapter-${index}`,
                         number: chapterNum,
                         total: parseInt(match[2]),
                         title: match[3].trim().replace(/\*+/g, '') || `Capítulo ${match[1]}`,
                         position: match.index,
                         audioUrl: audioChapter?.audioUrl || null,
                         startPos: audioChapter?.startPos || match.index,
-                        endPos: audioChapter?.endPos || (matches[index + 1]?.index || null)
-                    })
+                        endPos: audioChapter?.endPos || null
+                    }
                 })
-                
-                // Adicionar conclusão se existir
-                if (conclusionMatch) {
-                    const totalChapters = matches.length
-                    const audioChapter = safeAudioChapters.find(ac => ac.number === totalChapters + 1)
-                    allChapters.push({
-                        id: 'conclusion',
-                        number: totalChapters + 1,
-                        title: 'Resumo Final',
-                        position: conclusionMatch.index,
-                        audioUrl: audioChapter?.audioUrl || null,
-                        startPos: audioChapter?.startPos || conclusionMatch.index,
-                        endPos: audioChapter?.endPos || safeSummary.length,
-                        isConclusion: true
-                    })
-                }
-                
-                setChapters(allChapters)
+                setChapters(extractedChapters)
             } else {
                 // Se não encontrar capítulos no formato esperado, tenta encontrar outros títulos em negrito
                 const headingRegex = /\*\*(.*?)\*\*/g
@@ -167,71 +123,27 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         extractChapters()
     }, [safeSummary, safeAudioChapters])
 
-    // Restaurar posição de leitura salva
-    useEffect(() => {
-        if (!contentRef.current || chapters.length === 0 || !savedProgress) return
-        
-        // Restaurar capítulo atual
-        if (savedProgress.currentChapter && savedProgress.currentChapter > 0) {
-            const chapterIndex = Math.min(savedProgress.currentChapter, chapters.length - 1)
-            setCurrentChapter(chapterIndex)
-            
-            // Descer para o capítulo salvo
-            const chapter = chapters[chapterIndex]
-            if (chapter && chapter.id) {
-                const element = document.getElementById(chapter.id)
-                if (element) {
-                    const offsetCompensation = 80
-                    const targetTop = element.offsetTop - offsetCompensation
-                    setTimeout(() => {
-                        contentRef.current?.scrollTo({ top: targetTop, behavior: 'auto' })
-                    }, 0)
-                }
-            }
-        }
-        // Se não tem capítulo salvo mas tem progresso de scroll, restaurar scroll direto
-        else if (savedProgress.scrollProgress && savedProgress.scrollProgress > 0) {
-            const container = contentRef.current
-            if (container) {
-                const { scrollHeight, clientHeight } = container
-                const scrollPosition = (savedProgress.scrollProgress / 100) * (scrollHeight - clientHeight)
-                setTimeout(() => {
-                    container.scrollTo({ top: scrollPosition, behavior: 'auto' })
-                }, 0)
-            }
-        }
-    }, [chapters, savedProgress])
-
     useEffect(() => {
         const handleScroll = () => {
-            // Ignora atualizações se foi uma seleção manual recente
-            if (isManualSelectionRef.current) {
-                return
-            }
+            if (!contentRef.current) return
 
-            const container = contentRef.current
-            if (!container) return
-
-            const { scrollTop, scrollHeight, clientHeight } = container
+            const { scrollTop, scrollHeight, clientHeight } = contentRef.current
             const scrollProgress = (scrollTop / (scrollHeight - clientHeight)) * 100
             setProgress(Math.min(100, Math.max(0, scrollProgress)))
             
-            // Detecta o capítulo atual baseado na posição relativa dentro do container
-            if (playerChapters.length > 0) {
-                const elements = playerChapters.map(ch => document.getElementById(ch.id)).filter(Boolean)
-                let closestIdx = 0
-                let closestDistance = Infinity
-                const offsetCompensation = 80 // compensar header fixo
+            // Detecta o capítulo atual baseado na posição de scroll
+            if (chapters.length > 0) {
+                const elements = chapters.map(ch => document.getElementById(ch.id)).filter(Boolean)
+                let currentIdx = 0
                 
                 for (let i = 0; i < elements.length; i++) {
-                    const elementTop = elements[i].offsetTop
-                    const distance = Math.abs((elementTop - scrollTop) - offsetCompensation)
-                    if (distance < closestDistance) {
-                        closestDistance = distance
-                        closestIdx = i
+                    const rect = elements[i].getBoundingClientRect()
+                    if (rect.top <= 200) { // 200px de margem do topo
+                        currentIdx = i
                     }
                 }
-                setCurrentChapter(closestIdx)
+                
+                setCurrentChapter(currentIdx)
             }
         }
 
@@ -240,29 +152,21 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             content.addEventListener('scroll', handleScroll)
             return () => content.removeEventListener('scroll', handleScroll)
         }
-    }, [playerChapters])
+    }, [chapters])
 
     // Gerenciar áudio do miniplayer
     useEffect(() => {
         const audio = audioRef.current
         if (!audio) return
 
-        const handleTimeUpdate = () => setCurrentAudioTime(audio.currentTime)
+        const handleTimeUpdate = () => {
+            if (!seekingRef.current) {
+                setCurrentAudioTime(audio.currentTime)
+            }
+        }
         const handleLoadedMetadata = () => {
             setAudioDuration(audio.duration)
             // Se devemos tocar após carregar, inicia a reprodução
-            if (shouldPlayAfterLoadRef.current) {
-                shouldPlayAfterLoadRef.current = false
-                audio.play().then(() => {
-                    setIsAudioPlaying(true)
-                }).catch(err => {
-                    console.error('Erro ao reproduzir áudio:', err)
-                    setIsAudioPlaying(false)
-                })
-            }
-        }
-        const handleCanPlay = () => {
-            // Se devemos tocar e ainda não tocou, toca agora
             if (shouldPlayAfterLoadRef.current) {
                 shouldPlayAfterLoadRef.current = false
                 audio.play().then(() => {
@@ -277,13 +181,11 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
 
         audio.addEventListener('timeupdate', handleTimeUpdate)
         audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-        audio.addEventListener('canplay', handleCanPlay)
         audio.addEventListener('ended', handleEnded)
 
         return () => {
             audio.removeEventListener('timeupdate', handleTimeUpdate)
             audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-            audio.removeEventListener('canplay', handleCanPlay)
             audio.removeEventListener('ended', handleEnded)
         }
     }, [])
@@ -313,76 +215,76 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         setIsAudioPlaying(false)
     }
 
-    const handleAudioProgressBarClick = (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (!audioRef.current || audioDuration === 0) return
-        const progressBar = progressBarRef.current
-        if (!progressBar) return
-
-        const rect = progressBar.getBoundingClientRect()
-        const clickX = e.clientX - rect.left
-        const percentage = Math.max(0, Math.min(1, clickX / rect.width))
-        const newTime = percentage * audioDuration
-
-        audioRef.current.currentTime = newTime
-        setCurrentAudioTime(newTime)
+    const formatTime = (seconds) => {
+        if (!seconds || Number.isNaN(seconds) || seconds === Infinity) return '0:00'
+        const minutes = Math.floor(seconds / 60)
+        const secs = Math.max(0, Math.floor(seconds % 60))
+        return `${minutes}:${String(secs).padStart(2, '0')}`
     }
 
-    const handleAudioProgressBarMouseDown = (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        setIsDraggingAudioBar(true)
-        handleAudioProgressBarClick(e)
+    const getSeekTimeFromPointer = (clientX) => {
+        if (!progressBarRef.current || !audioDuration) return null
+        const rect = progressBarRef.current.getBoundingClientRect()
+        const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1)
+        return ratio * audioDuration
     }
 
-    useEffect(() => {
-        if (!isDraggingAudioBar) return
+    const updateTimeWhileSeeking = (clientX) => {
+        const seekTime = getSeekTimeFromPointer(clientX)
+        if (seekTime === null) return null
+        setCurrentAudioTime(seekTime)
+        return seekTime
+    }
 
-        const handleMouseMove = (e) => {
-            if (!audioRef.current || audioDuration === 0) return
-            const progressBar = progressBarRef.current
-            if (!progressBar) return
+    const handleSeekStart = (event) => {
+        if (!audioDuration) return
 
-            const rect = progressBar.getBoundingClientRect()
-            const moveX = e.clientX - rect.left
-            const percentage = Math.max(0, Math.min(1, moveX / rect.width))
-            const newTime = percentage * audioDuration
+        const clientX = event.clientX ?? event.touches?.[0]?.clientX
+        if (clientX === undefined) return
 
+        seekingRef.current = true
+        updateTimeWhileSeeking(clientX)
+
+        window.addEventListener('pointermove', handleSeekMove)
+        window.addEventListener('pointerup', handleSeekEnd)
+        event.preventDefault()
+    }
+
+    const handleSeekMove = (event) => {
+        if (!seekingRef.current) return
+        const clientX = event.clientX ?? event.touches?.[0]?.clientX
+        if (clientX === undefined) return
+        updateTimeWhileSeeking(clientX)
+    }
+
+    const handleSeekEnd = (event) => {
+        if (!seekingRef.current) return
+        seekingRef.current = false
+
+        const clientX = event.clientX ?? event.touches?.[0]?.clientX
+        const newTime = clientX !== undefined ? updateTimeWhileSeeking(clientX) : currentAudioTime
+
+        if (audioRef.current && newTime !== null) {
             audioRef.current.currentTime = newTime
-            setCurrentAudioTime(newTime)
+            if (isAudioPlaying) {
+                audioRef.current.play().catch(() => {})
+            }
         }
 
-        const handleMouseUp = () => {
-            setIsDraggingAudioBar(false)
-        }
-
-        document.addEventListener('mousemove', handleMouseMove)
-        document.addEventListener('mouseup', handleMouseUp)
-
-        return () => {
-            document.removeEventListener('mousemove', handleMouseMove)
-            document.removeEventListener('mouseup', handleMouseUp)
-        }
-    }, [isDraggingAudioBar, audioDuration])
+        window.removeEventListener('pointermove', handleSeekMove)
+        window.removeEventListener('pointerup', handleSeekEnd)
+    }
 
     const handleChapterChange = async (targetIndex) => {
         if (!playerChapters.length) return
         if (targetIndex < 0 || targetIndex >= playerChapters.length) return
 
         const targetChapter = playerChapters[targetIndex]
-        const wasAudioPlaying = isAudioPlaying
         pauseAndResetAudio()
-        
-        // Scroll automático para o capítulo correspondente
-        scrollToChapter(targetIndex)
 
         if (targetChapter.audioUrl) {
-            // Se o áudio estava tocando, marca para tocar automaticamente após carregar
-            if (wasAudioPlaying) {
-                shouldPlayAfterLoadRef.current = true
-            }
-            // Já foi setado em scrollToChapter, então não precisa aqui
+            shouldPlayAfterLoadRef.current = true
+            setCurrentChapter(targetIndex)
             if (audioRef.current) {
                 audioRef.current.load()
             }
@@ -413,7 +315,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             if (showToast) {
                 showToast(`Áudio do capítulo ${targetChapter.number} gerado!`, 'success')
             }
-            // O useEffect vai detectar quando o áudio estiver pronto e iniciar automaticamente
+            // O useEffect vai detectar quando o áudio estiver pronto
         } catch (error) {
             if (showToast) {
                 showToast(`Erro ao gerar áudio do capítulo ${targetChapter.number}`, 'error')
@@ -429,6 +331,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
 
     const currentAudioUrl = playerChapters[currentChapter]?.audioUrl || ''
 
+    useEffect(() => {
+        // Reseta indicadores ao trocar a faixa de áudio
+        setCurrentAudioTime(0)
+        setAudioDuration(0)
+    }, [currentAudioUrl])
+
     const increaseFontSize = () => {
         setFontSize(prev => Math.min(28, prev + 2))
     }
@@ -438,39 +346,15 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     }
 
     const scrollToChapter = (chapterIndex) => {
-        if (!playerChapters.length) return
-        if (chapterIndex < 0 || chapterIndex >= playerChapters.length) return
+        if (!contentRef.current) return
         
-        const chapter = playerChapters[chapterIndex]
-        const chapterId = chapter?.id
+        const chapterId = chapters[chapterIndex]?.id
         if (!chapterId) return
         
-        // Ativa flag para impedir que o scroll listener interfira
-        isManualSelectionRef.current = true
-        
-        // Limpa o timeout anterior se existir
-        if (manualSelectionTimeoutRef.current) {
-            clearTimeout(manualSelectionTimeoutRef.current)
-        }
-        
-        // Define o capítulo selecionado imediatamente
-        setCurrentChapter(chapterIndex)
-        
         const element = document.getElementById(chapterId)
-        
         if (element) {
-            const container = contentRef.current
-            const offsetCompensation = 80
-            const targetTop = element.offsetTop - offsetCompensation
-            container.scrollTo({ top: targetTop, behavior: 'smooth' })
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
             setShowIndex(false)
-            
-            // Desativa a flag após a animação de scroll terminar (1.5s para cobrir animação e inércia)
-            manualSelectionTimeoutRef.current = setTimeout(() => {
-                isManualSelectionRef.current = false
-            }, 1500)
-        } else {
-            isManualSelectionRef.current = false
         }
     }
 
@@ -486,41 +370,20 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             if (audioRef.current) {
                 audioRef.current.pause()
             }
-            if (manualSelectionTimeoutRef.current) {
-                clearTimeout(manualSelectionTimeoutRef.current)
-            }
+            window.removeEventListener('pointermove', handleSeekMove)
+            window.removeEventListener('pointerup', handleSeekEnd)
         }
     }, [])
-
-    // Salvar progresso de leitura periodicamente
-    useEffect(() => {
-        if (!onUpdateProgress) return
-
-        const saveProgressInterval = setInterval(() => {
-            onUpdateProgress({
-                scrollProgress: progress,
-                currentChapter: currentChapter,
-                timestamp: new Date().toISOString()
-            })
-        }, 10000) // Salva a cada 10 segundos
-
-        return () => clearInterval(saveProgressInterval)
-    }, [progress, currentChapter, onUpdateProgress])
 
     const formatText = (text) => {
         // Adiciona IDs aos capítulos para navegação
         let formattedText = text
-            // Adiciona ID para introdução
-            .replace(/\*{0,2}Por que ler este livro\??\*{0,2}/i, '<h2 id="intro" class="reading-h2">Por que ler este livro?</h2>')
-            // Adiciona ID para capítulos numerados
             .replace(/\*{0,2}Capítulo\s+(\d+)\s+de\s+(\d+)\*{0,2}[:\-\s]*(.*?)(?=\n|$)/gi, (match, num, total, title, offset) => {
                 const index = chapters.findIndex(ch => ch.position === offset)
                 const id = index >= 0 ? chapters[index].id : `chapter-${num}`
                 const cleanTitle = title ? title.replace(/\*+/g, '') : ''
                 return `<h2 id="${id}" class="reading-h2">Capítulo ${num} de ${total}${cleanTitle ? ': ' + cleanTitle : ''}</h2>`
             })
-            // Adiciona ID para conclusão
-            .replace(/\*{0,2}Resumo Final\*{0,2}/i, '<h2 id="conclusion" class="reading-h2">Resumo Final</h2>')
             .replace(/\*\*([^*]+)\*\*/g, (match, content, offset) => {
                 // Para outros títulos em negrito que não sejam capítulos
                 const chapter = chapters.find(ch => ch.position === offset && ch.id.startsWith('section-'))
@@ -562,19 +425,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                 </button>
 
                 <div className="reading-meta">
-                    <span className="reading-time">
-                        {isGeneratingAudio ? (
-                            <>
-                                <svg className="generating-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <polyline points="12 6 12 12 16 14" />
-                                </svg>
-                                {' '}Gerando áudio...
-                            </>
-                        ) : (
-                            `${Math.ceil(estimatedReadTime * (1 - progress / 100))} min restantes`
-                        )}
-                    </span>
+                    <span className="reading-time">{Math.ceil(estimatedReadTime * (1 - progress / 100))} min restantes</span>
                 </div>
 
                 <div className="reading-controls">
@@ -661,13 +512,14 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         // Se o capítulo não tem áudio e podemos gerar, gera sob demanda
                                         if (!chapter.audioUrl && onGenerateChapterAudio && chapter.startPos !== undefined) {
                                             setIsGeneratingAudio(true)
-                                            pendingChapterIndexRef.current = index
+                                            pendingChapterIndexRef.current = index  // Marca qual capítulo estamos esperando
                                             
                                             if (showToast) {
-                                                showToast(`Gerando áudio do ${chapter.isIntro ? 'introdução' : chapter.isConclusion ? 'resumo final' : `capítulo ${chapter.number}`}...`, 'info', true)
+                                                showToast(`Gerando áudio do capítulo ${chapter.number}...`, 'info', true)
                                             }
                                             
                                             try {
+                                                // Calcular endPos se não tiver
                                                 const endPos = chapter.endPos || (chapters[index + 1]?.startPos || safeSummary.length)
                                                 
                                                 await onGenerateChapterAudio({
@@ -679,12 +531,12 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                                 })
                                                 
                                                 if (showToast) {
-                                                    showToast(`Áudio do ${chapter.isIntro ? 'introdução' : chapter.isConclusion ? 'resumo final' : `capítulo ${chapter.number}`} gerado!`, 'success')
+                                                    showToast(`Áudio do capítulo ${chapter.number} gerado!`, 'success')
                                                 }
-                                                // O useEffect vai detectar quando audioChapters for atualizado e iniciar automaticamente
+                                                // O useEffect vai detectar quando audioChapters for atualizado
                                             } catch (error) {
                                                 if (showToast) {
-                                                    showToast(`Erro ao gerar áudio`, 'error')
+                                                    showToast(`Erro ao gerar áudio do capítulo ${chapter.number}`, 'error')
                                                 }
                                                 pendingChapterIndexRef.current = null
                                             } finally {
@@ -693,7 +545,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                         }
                                     }}
                                 >
-                                    <span className="index-number">{chapter.isIntro ? '📖' : chapter.isConclusion ? '✨' : (chapter.number || index + 1)}</span>
+                                    <span className="index-number">{chapter.number || index + 1}</span>
                                     <span className="index-title">
                                         {chapter.title}
                                         {chapter.audioUrl && (
@@ -758,12 +610,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                             <div className="mini-player-expanded">
                                 <div className="mini-player-header">
                                     <span className="mini-player-title">
-                                        {playerChapters[currentChapter]?.isIntro 
-                                            ? `Introdução: ${playerChapters[currentChapter]?.title}` 
-                                            : playerChapters[currentChapter]?.isConclusion 
-                                            ? `Conclusão: ${playerChapters[currentChapter]?.title}`
-                                            : `Cap. ${playerChapters[currentChapter]?.number}: ${playerChapters[currentChapter]?.title}`
-                                        }
+                                        Cap. {playerChapters[currentChapter]?.number}: {playerChapters[currentChapter]?.title}
                                     </span>
                                     <button
                                         className="mini-player-close"
@@ -820,45 +667,27 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                 </div>
 
                                 <div className="mini-player-progress-container">
-                                    <div 
-                                        ref={progressBarRef}
+                                    <span className="mini-player-time">{formatTime(currentAudioTime)}</span>
+                                    <div
                                         className="mini-player-progress-bar"
-                                        onMouseDown={handleAudioProgressBarMouseDown}
-                                        onClick={handleAudioProgressBarClick}
-                                        onTouchStart={(e) => {
-                                            e.preventDefault()
-                                            setIsDraggingAudioBar(true)
-                                            const touch = e.touches[0]
-                                            const progressBar = progressBarRef.current
-                                            if (!progressBar) return
-                                            const rect = progressBar.getBoundingClientRect()
-                                            const touchX = touch.clientX - rect.left
-                                            const percentage = Math.max(0, Math.min(1, touchX / rect.width))
-                                            const newTime = percentage * audioDuration
-                                            if (audioRef.current) {
-                                                audioRef.current.currentTime = newTime
-                                                setCurrentAudioTime(newTime)
-                                            }
-                                        }}
+                                        ref={progressBarRef}
+                                        onPointerDown={handleSeekStart}
                                         role="slider"
-                                        aria-label="Barra de progresso do áudio"
-                                        aria-valuemin="0"
-                                        aria-valuemax={Math.floor(audioDuration)}
-                                        aria-valuenow={Math.floor(currentAudioTime)}
+                                        aria-valuemin={0}
+                                        aria-valuemax={audioDuration || 0}
+                                        aria-valuenow={currentAudioTime}
+                                        aria-label="Progresso do áudio"
                                     >
-                                        <div 
+                                        <div
                                             className="mini-player-progress-fill"
-                                            style={{ width: `${(currentAudioTime / audioDuration) * 100}%` }}
+                                            style={{ width: `${audioDuration ? (currentAudioTime / audioDuration) * 100 : 0}%` }}
                                         />
-                                        <div 
+                                        <div
                                             className="mini-player-progress-thumb"
-                                            style={{ left: `${(currentAudioTime / audioDuration) * 100}%` }}
+                                            style={{ left: `${audioDuration ? (currentAudioTime / audioDuration) * 100 : 0}%` }}
                                         />
                                     </div>
-                                </div>
-
-                                <div className="mini-player-time">
-                                    {Math.floor(currentAudioTime / 60)}:{String(Math.floor(currentAudioTime % 60)).padStart(2, '0')} / {Math.floor(audioDuration / 60)}:{String(Math.floor(audioDuration % 60)).padStart(2, '0')}
+                                    <span className="mini-player-time">-{formatTime(Math.max(audioDuration - currentAudioTime, 0))}</span>
                                 </div>
 
                                 <div className="mini-player-chapters">
@@ -869,7 +698,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                             onClick={() => handleChapterChange(idx)}
                                             disabled={isGeneratingAudio}
                                         >
-                                            {chapter.isIntro ? 'I' : chapter.isConclusion ? 'C' : chapter.number}
+                                            {chapter.number}
                                         </button>
                                     ))}
                                 </div>
