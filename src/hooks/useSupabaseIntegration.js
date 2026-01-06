@@ -36,6 +36,14 @@ export function useSupabaseIntegration() {
 
   // Criar ou buscar livro no banco e obter seu ID do Supabase
   const getOrCreateBookInDB = async (bookData) => {
+    if (!bookData) return null
+
+    // Se já temos o registro do Supabase, apenas registramos o ID atual
+    if (bookData.google_books_id && bookData.id) {
+      setCurrentBookId(bookData.id)
+      return bookData.id
+    }
+
     const { data, error } = await supabaseService.getOrCreateBook(bookData)
     if (!error && data) {
       setCurrentBookId(data.id)

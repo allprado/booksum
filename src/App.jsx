@@ -259,6 +259,9 @@ function App({ isAdminMode = false }) {
     setSelectedBookHasSummary(false) // Reset
     setView('detail')
 
+    // Garantir que temos o ID do livro no Supabase antes de continuar
+    const bookId = await supabase.getOrCreateBookInDB(book)
+
     // Verificar se o livro já vem com resumos (ex: da biblioteca)
     if (book.summaries && book.summaries.length > 0) {
       setSelectedBookHasSummary(true)
@@ -266,7 +269,6 @@ function App({ isAdminMode = false }) {
     }
 
     // Tentar buscar/criar o livro no banco e verificar se tem resumo
-    const bookId = await supabase.getOrCreateBookInDB(book)
     if (bookId) {
       // Verificar se já existe resumo
       const existingSummary = await supabase.checkAndLoadSummary(bookId)
@@ -1341,7 +1343,12 @@ Gere o resumo final em português brasileiro:`
               }
               
               // Carregar e exibir resumo existente
-              const data = await supabase.getSummaryFromDB(supabase.currentBookId)
+              const currentBookId = supabase.currentBookId
+              if (!currentBookId) {
+                showToast('Não foi possível identificar o livro para carregar o resumo.', 'error')
+                return
+              }
+              const data = await supabase.getSummaryFromDB(currentBookId)
               if (data) {
                 setSummary(data.content?.fullText || '')
                 setView('summary')
