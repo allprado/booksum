@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ReadingMode from './ReadingMode'
 import './SummaryView.css'
 
@@ -7,11 +7,19 @@ function SummaryView({
     summary,
     audioUrl,
     audioChapters,
+    autoOpenReadingMode = false,
     onGenerateChapterAudio,
     showToast,
     onUpdateProgress
 }) {
     const [showReadingMode, setShowReadingMode] = useState(false)
+
+    // Abre o modo leitura automaticamente quando solicitado pelo pai (ex: vindo da biblioteca)
+    useEffect(() => {
+        if (autoOpenReadingMode) {
+            setShowReadingMode(true)
+        }
+    }, [autoOpenReadingMode])
 
     const estimatedReadTime = Math.ceil(summary.length / 1250) // ~200 words per minute
     const characterCount = summary.length

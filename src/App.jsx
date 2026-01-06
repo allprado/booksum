@@ -29,6 +29,7 @@ function App({ isAdminMode = false }) {
   const [toast, setToast] = useState(null)
   const [currentQuery, setCurrentQuery] = useState('')
   const [selectedBookHasSummary, setSelectedBookHasSummary] = useState(false) // Rastrear se livro selecionado tem resumo
+  const [autoReadingMode, setAutoReadingMode] = useState(false) // Abrir leitor direto quando vindo da biblioteca
   const [hasMoreResults, setHasMoreResults] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -250,6 +251,7 @@ function App({ isAdminMode = false }) {
   }, [currentQuery, currentPage, loading, handleSearch])
 
   const handleSelectBook = async (book) => {
+    setAutoReadingMode(false)
     setSelectedBook(book)
     setSummary(null)
     setAudioUrl(null)
@@ -320,6 +322,7 @@ function App({ isAdminMode = false }) {
           // Usar setTimeout para garantir que setState foi processado
           setTimeout(() => {
             console.log('Mudando para view summary')
+            setAutoReadingMode(true)
             setView('summary')
           }, 100)
           
@@ -346,6 +349,7 @@ function App({ isAdminMode = false }) {
           
           setTimeout(() => {
             console.log('Mudando para view summary')
+            setAutoReadingMode(true)
             setView('summary')
           }, 100)
           
@@ -720,6 +724,7 @@ Gere o resumo final em português brasileiro:`
         
         setSummary(cleanedSummary)
         setView('summary')
+        setAutoReadingMode(false)
         showToast('Conteúdo gerado com sucesso!', 'success')
         
         // Garantir que o livro existe no banco de dados
@@ -1362,6 +1367,7 @@ Gere o resumo final em português brasileiro:`
             summary={summary}
             audioUrl={audioUrl}
             audioChapters={audioChapters}
+            autoOpenReadingMode={autoReadingMode}
             onGenerateChapterAudio={handleGenerateChapterAudio}
             showToast={showToast}
             onUpdateProgress={(progress) => {
