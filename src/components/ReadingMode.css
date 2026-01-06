@@ -675,12 +675,60 @@
 
 .mini-player-time {
     text-align: center;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: var(--reading-muted);
     font-variant-numeric: tabular-nums;
     font-weight: 500;
     letter-spacing: 0.5px;
-    padding: var(--space-xs) 0;
+    min-width: 45px;
+}
+
+.mini-player-progress-section {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) 0;
+}
+
+.mini-player-progress-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(128, 128, 128, 0.15);
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    overflow: visible;
+    transition: height var(--transition-fast);
+}
+
+.mini-player-progress-bar:hover {
+    height: 8px;
+}
+
+.mini-player-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--reading-highlight), var(--color-primary));
+    border-radius: 3px;
+    position: relative;
+    transition: width 0.1s linear;
+}
+
+.mini-player-progress-handle {
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    background: var(--reading-highlight);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mini-player-progress-bar:hover .mini-player-progress-handle {
+    opacity: 1;
 }
 
 .mini-player-chapters {

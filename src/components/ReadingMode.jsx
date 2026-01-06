@@ -15,8 +15,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
     const audioRef = useRef(null)
     const contentRef = useRef(null)
-    const progressBarRef = useRef(null)
-    const seekingRef = useRef(false)
     const shouldPlayAfterLoadRef = useRef(false)
     const pendingChapterIndexRef = useRef(null)
 
@@ -159,11 +157,7 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         const audio = audioRef.current
         if (!audio) return
 
-        const handleTimeUpdate = () => {
-            if (!seekingRef.current) {
-                setCurrentAudioTime(audio.currentTime)
-            }
-        }
+        const handleTimeUpdate = () => setCurrentAudioTime(audio.currentTime)
         const handleLoadedMetadata = () => {
             setAudioDuration(audio.duration)
             // Se devemos tocar após carregar, inicia a reprodução
@@ -213,66 +207,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         audioRef.current.pause()
         audioRef.current.currentTime = 0
         setIsAudioPlaying(false)
-    }
-
-    const formatTime = (seconds) => {
-        if (!seconds || Number.isNaN(seconds) || seconds === Infinity) return '0:00'
-        const minutes = Math.floor(seconds / 60)
-        const secs = Math.max(0, Math.floor(seconds % 60))
-        return `${minutes}:${String(secs).padStart(2, '0')}`
-    }
-
-    const getSeekTimeFromPointer = (clientX) => {
-        if (!progressBarRef.current || !audioDuration) return null
-        const rect = progressBarRef.current.getBoundingClientRect()
-        const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1)
-        return ratio * audioDuration
-    }
-
-    const updateTimeWhileSeeking = (clientX) => {
-        const seekTime = getSeekTimeFromPointer(clientX)
-        if (seekTime === null) return null
-        setCurrentAudioTime(seekTime)
-        return seekTime
-    }
-
-    const handleSeekStart = (event) => {
-        if (!audioDuration) return
-
-        const clientX = event.clientX ?? event.touches?.[0]?.clientX
-        if (clientX === undefined) return
-
-        seekingRef.current = true
-        updateTimeWhileSeeking(clientX)
-
-        window.addEventListener('pointermove', handleSeekMove)
-        window.addEventListener('pointerup', handleSeekEnd)
-        event.preventDefault()
-    }
-
-    const handleSeekMove = (event) => {
-        if (!seekingRef.current) return
-        const clientX = event.clientX ?? event.touches?.[0]?.clientX
-        if (clientX === undefined) return
-        updateTimeWhileSeeking(clientX)
-    }
-
-    const handleSeekEnd = (event) => {
-        if (!seekingRef.current) return
-        seekingRef.current = false
-
-        const clientX = event.clientX ?? event.touches?.[0]?.clientX
-        const newTime = clientX !== undefined ? updateTimeWhileSeeking(clientX) : currentAudioTime
-
-        if (audioRef.current && newTime !== null) {
-            audioRef.current.currentTime = newTime
-            if (isAudioPlaying) {
-                audioRef.current.play().catch(() => {})
-            }
-        }
-
-        window.removeEventListener('pointermove', handleSeekMove)
-        window.removeEventListener('pointerup', handleSeekEnd)
     }
 
     const handleChapterChange = async (targetIndex) => {
@@ -329,13 +263,21 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
     const goToNextAudioChapter = () => handleChapterChange(currentChapter + 1)
     const goToPreviousAudioChapter = () => handleChapterChange(currentChapter - 1)
 
-    const currentAudioUrl = playerChapters[currentChapter]?.audioUrl || ''
+    const handleProgressBarClick = (e) => {
+        if (!audioRef.current || !audioDuration) return
+        
+        const progressBar = e.currentTarget
+        const rect = progressBar.getBoundingClientRect()
+        const clickX = e.clientX - rect.left
+        const percentage = clickX / rect.width
+        const newTime = percentage * audioDuration
+        
+        audioRef.current.currentTime = newTime
+        setCurrentAudioTime(newTime)
+    }
 
-    useEffect(() => {
-        // Reseta indicadores ao trocar a faixa de áudio
-        setCurrentAudioTime(0)
-        setAudioDuration(0)
-    }, [currentAudioUrl])
+    const currentAudioUrl = playerChapters[currentChapter]?.audioUrl || ''
+    const progressPercentage = audioDuration > 0 ? (currentAudioTime / audioDuration) * 100 : 0
 
     const increaseFontSize = () => {
         setFontSize(prev => Math.min(28, prev + 2))
@@ -370,8 +312,6 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
             if (audioRef.current) {
                 audioRef.current.pause()
             }
-            window.removeEventListener('pointermove', handleSeekMove)
-            window.removeEventListener('pointerup', handleSeekEnd)
         }
     }, [])
 
@@ -666,28 +606,29 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                     </button>
                                 </div>
 
-                                <div className="mini-player-progress-container">
-                                    <span className="mini-player-time">{formatTime(currentAudioTime)}</span>
-                                    <div
-                                        className="mini-player-progress-bar"
-                                        ref={progressBarRef}
-                                        onPointerDown={handleSeekStart}
-                                        role="slider"
-                                        aria-valuemin={0}
-                                        aria-valuemax={audioDuration || 0}
-                                        aria-valuenow={currentAudioTime}
-                                        aria-label="Progresso do áudio"
-                                    >
-                                        <div
-                                            className="mini-player-progress-fill"
-                                            style={{ width: `${audioDuration ? (currentAudioTime / audioDuration) * 100 : 0}%` }}
-                                        />
-                                        <div
-                                            className="mini-player-progress-thumb"
-                                            style={{ left: `${audioDuration ? (currentAudioTime / audioDuration) * 100 : 0}%` }}
-                                        />
+                                <div className="mini-player-progress-section">
+                                    <div className="mini-player-time">
+                                        {Math.floor(currentAudioTime / 60)}:{String(Math.floor(currentAudioTime % 60)).padStart(2, '0')}
                                     </div>
-                                    <span className="mini-player-time">-{formatTime(Math.max(audioDuration - currentAudioTime, 0))}</span>
+                                    <div 
+                                        className="mini-player-progress-bar" 
+                                        onClick={handleProgressBarClick}
+                                        role="slider"
+                                        aria-label="Barra de progresso do áudio"
+                                        aria-valuemin="0"
+                                        aria-valuemax="100"
+                                        aria-valuenow={Math.round(progressPercentage)}
+                                    >
+                                        <div 
+                                            className="mini-player-progress-fill" 
+                                            style={{ width: `${progressPercentage}%` }}
+                                        >
+                                            <div className="mini-player-progress-handle"></div>
+                                        </div>
+                                    </div>
+                                    <div className="mini-player-time">
+                                        {Math.floor(audioDuration / 60)}:{String(Math.floor(audioDuration % 60)).padStart(2, '0')}
+                                    </div>
                                 </div>
 
                                 <div className="mini-player-chapters">
