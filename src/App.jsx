@@ -30,6 +30,7 @@ function App({ isAdminMode = false }) {
   const [currentQuery, setCurrentQuery] = useState('')
   const [selectedBookHasSummary, setSelectedBookHasSummary] = useState(false) // Rastrear se livro selecionado tem resumo
   const [autoReadingMode, setAutoReadingMode] = useState(false) // Abrir leitor direto quando vindo da biblioteca
+  const [savedProgress, setSavedProgress] = useState(null) // Progresso de leitura salvo
   const [hasMoreResults, setHasMoreResults] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -284,14 +285,14 @@ function App({ isAdminMode = false }) {
   }
 
   // Ler resumo da biblioteca
-  const handleReadSummaryFromLibrary = async (libraryItemId, book) => {
+  const handleReadSummaryFromLibrary = async (libraryItemId, book, savedProgress = null) => {
     // Verificar autenticação
     if (!supabase.user) {
       setShowLoginRequiredModal(true)
       return
     }
 
-    console.log('handleReadSummaryFromLibrary chamado com book:', book)
+    console.log('handleReadSummaryFromLibrary chamado com book:', book, 'savedProgress:', savedProgress)
     
     // Limpar estados antes de carregar
     setSelectedBook(book)
@@ -299,6 +300,7 @@ function App({ isAdminMode = false }) {
     setAudioUrl(null)
     setAudioChapters([])
     setSelectedBookHasSummary(false)
+    setSavedProgress(savedProgress)
     
     try {
       // Se o livro já veio da biblioteca com resumo carregado, usa direto
@@ -1382,6 +1384,7 @@ Gere o resumo final em português brasileiro:`
             autoOpenReadingMode={autoReadingMode}
             onGenerateChapterAudio={handleGenerateChapterAudio}
             showToast={showToast}
+            savedProgress={savedProgress}
             onUpdateProgress={(progress) => {
               if (supabase.user && supabase.currentBookId) {
                 supabase.updateReadingProgress(supabase.currentBookId, progress)

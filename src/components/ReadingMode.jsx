@@ -1,20 +1,22 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import './ReadingMode.css'
 
-function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio, showToast, onUpdateProgress }) {
+function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onGenerateChapterAudio, showToast, onUpdateProgress, savedProgress = null }) {
     const [fontSize, setFontSize] = useState(18)
     const [theme, setTheme] = useState('dark') // dark, light, sepia
-    const [progress, setProgress] = useState(0)
+    const [progress, setProgress] = useState(savedProgress?.scrollProgress || 0)
     const [showIndex, setShowIndex] = useState(false)
     const [chapters, setChapters] = useState([])
-    const [currentChapter, setCurrentChapter] = useState(0)
+    const [currentChapter, setCurrentChapter] = useState(savedProgress?.currentChapter || 0)
     const [miniPlayerOpen, setMiniPlayerOpen] = useState(false)
     const [isAudioPlaying, setIsAudioPlaying] = useState(false)
     const [currentAudioTime, setCurrentAudioTime] = useState(0)
     const [audioDuration, setAudioDuration] = useState(0)
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
+    const [isDraggingAudioBar, setIsDraggingAudioBar] = useState(false)
     const audioRef = useRef(null)
     const contentRef = useRef(null)
+    const progressBarRef = useRef(null)
     const shouldPlayAfterLoadRef = useRef(false)
     const pendingChapterIndexRef = useRef(null)
     const isManualSelectionRef = useRef(false)
@@ -165,6 +167,41 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         extractChapters()
     }, [safeSummary, safeAudioChapters])
 
+    // Restaurar posição de leitura salva
+    useEffect(() => {
+        if (!contentRef.current || chapters.length === 0 || !savedProgress) return
+        
+        // Restaurar capítulo atual
+        if (savedProgress.currentChapter && savedProgress.currentChapter > 0) {
+            const chapterIndex = Math.min(savedProgress.currentChapter, chapters.length - 1)
+            setCurrentChapter(chapterIndex)
+            
+            // Descer para o capítulo salvo
+            const chapter = chapters[chapterIndex]
+            if (chapter && chapter.id) {
+                const element = document.getElementById(chapter.id)
+                if (element) {
+                    const offsetCompensation = 80
+                    const targetTop = element.offsetTop - offsetCompensation
+                    setTimeout(() => {
+                        contentRef.current?.scrollTo({ top: targetTop, behavior: 'auto' })
+                    }, 0)
+                }
+            }
+        }
+        // Se não tem capítulo salvo mas tem progresso de scroll, restaurar scroll direto
+        else if (savedProgress.scrollProgress && savedProgress.scrollProgress > 0) {
+            const container = contentRef.current
+            if (container) {
+                const { scrollHeight, clientHeight } = container
+                const scrollPosition = (savedProgress.scrollProgress / 100) * (scrollHeight - clientHeight)
+                setTimeout(() => {
+                    container.scrollTo({ top: scrollPosition, behavior: 'auto' })
+                }, 0)
+            }
+        }
+    }, [chapters, savedProgress])
+
     useEffect(() => {
         const handleScroll = () => {
             // Ignora atualizações se foi uma seleção manual recente
@@ -275,6 +312,55 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
         audioRef.current.currentTime = 0
         setIsAudioPlaying(false)
     }
+
+    const handleAudioProgressBarClick = (e) => {
+        if (!audioRef.current || audioDuration === 0) return
+        const progressBar = progressBarRef.current
+        if (!progressBar) return
+
+        const rect = progressBar.getBoundingClientRect()
+        const clickX = e.clientX - rect.left
+        const percentage = Math.max(0, Math.min(1, clickX / rect.width))
+        const newTime = percentage * audioDuration
+
+        audioRef.current.currentTime = newTime
+        setCurrentAudioTime(newTime)
+    }
+
+    const handleAudioProgressBarMouseDown = (e) => {
+        setIsDraggingAudioBar(true)
+        handleAudioProgressBarClick(e)
+    }
+
+    useEffect(() => {
+        if (!isDraggingAudioBar) return
+
+        const handleMouseMove = (e) => {
+            if (!audioRef.current || audioDuration === 0) return
+            const progressBar = progressBarRef.current
+            if (!progressBar) return
+
+            const rect = progressBar.getBoundingClientRect()
+            const moveX = e.clientX - rect.left
+            const percentage = Math.max(0, Math.min(1, moveX / rect.width))
+            const newTime = percentage * audioDuration
+
+            audioRef.current.currentTime = newTime
+            setCurrentAudioTime(newTime)
+        }
+
+        const handleMouseUp = () => {
+            setIsDraggingAudioBar(false)
+        }
+
+        document.addEventListener('mousemove', handleMouseMove)
+        document.addEventListener('mouseup', handleMouseUp)
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove)
+            document.removeEventListener('mouseup', handleMouseUp)
+        }
+    }, [isDraggingAudioBar, audioDuration])
 
     const handleChapterChange = async (targetIndex) => {
         if (!playerChapters.length) return
@@ -727,6 +813,42 @@ function ReadingMode({ book, summary, onClose, audioUrl, audioChapters = [], onG
                                             <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
                                         </svg>
                                     </button>
+                                </div>
+
+                                <div className="mini-player-progress-container">
+                                    <div 
+                                        ref={progressBarRef}
+                                        className="mini-player-progress-bar"
+                                        onMouseDown={handleAudioProgressBarMouseDown}
+                                        onTouchStart={(e) => {
+                                            setIsDraggingAudioBar(true)
+                                            const touch = e.touches[0]
+                                            const progressBar = progressBarRef.current
+                                            if (!progressBar) return
+                                            const rect = progressBar.getBoundingClientRect()
+                                            const touchX = touch.clientX - rect.left
+                                            const percentage = Math.max(0, Math.min(1, touchX / rect.width))
+                                            const newTime = percentage * audioDuration
+                                            if (audioRef.current) {
+                                                audioRef.current.currentTime = newTime
+                                                setCurrentAudioTime(newTime)
+                                            }
+                                        }}
+                                        role="slider"
+                                        aria-label="Barra de progresso do áudio"
+                                        aria-valuemin="0"
+                                        aria-valuemax={Math.floor(audioDuration)}
+                                        aria-valuenow={Math.floor(currentAudioTime)}
+                                    >
+                                        <div 
+                                            className="mini-player-progress-fill"
+                                            style={{ width: `${(currentAudioTime / audioDuration) * 100}%` }}
+                                        />
+                                        <div 
+                                            className="mini-player-progress-thumb"
+                                            style={{ left: `${(currentAudioTime / audioDuration) * 100}%` }}
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="mini-player-time">

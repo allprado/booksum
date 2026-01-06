@@ -117,7 +117,7 @@ function Library({ onSelectBook, onReadSummary, onDeleteFromLibrary }) {
                               onClick={async (e) => {
                                 e.stopPropagation()
                                 setOpenMenuId(null)
-                                onReadSummary(item.id, book)
+                                onReadSummary(item.id, book, item.reading_progress)
                               }}
                             >
                               <span className="material-symbols-rounded">auto_stories</span>

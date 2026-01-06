@@ -10,7 +10,8 @@ function SummaryView({
     autoOpenReadingMode = false,
     onGenerateChapterAudio,
     showToast,
-    onUpdateProgress
+    onUpdateProgress,
+    savedProgress = null
 }) {
     const [showReadingMode, setShowReadingMode] = useState(false)
 
@@ -35,6 +36,7 @@ function SummaryView({
                 onClose={() => setShowReadingMode(false)}
                 showToast={showToast}
                 onUpdateProgress={onUpdateProgress}
+                savedProgress={savedProgress}
             />
         )
     }

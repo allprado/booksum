@@ -775,6 +775,66 @@
     }
 }
 
+/* Audio Progress Bar */
+.mini-player-progress-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+}
+
+.mini-player-progress-bar {
+    flex: 1;
+    position: relative;
+    height: 6px;
+    background: rgba(128, 128, 128, 0.2);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    align-items: center;
+    transition: height var(--transition-fast);
+}
+
+.mini-player-progress-bar:hover {
+    height: 8px;
+}
+
+.mini-player-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
+    border-radius: var(--radius-full);
+    transition: width 0.05s linear;
+    position: relative;
+}
+
+.mini-player-progress-thumb {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity var(--transition-fast), width var(--transition-fast), height var(--transition-fast);
+    pointer-events: none;
+}
+
+.mini-player-progress-bar:hover .mini-player-progress-thumb {
+    opacity: 1;
+    width: 16px;
+    height: 16px;
+}
+
+.mini-player-progress-bar:active .mini-player-progress-thumb {
+    width: 18px;
+    height: 18px;
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.4);
+}
+
 @media (max-width: 640px) {
     .reading-index {
         max-width: 100%;

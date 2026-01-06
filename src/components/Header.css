@@ -8,6 +8,7 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
+    width: 100%;
 }
 
 .header-content {
@@ -15,6 +16,7 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
+    gap: var(--space-md);
 }
 
 .header-btn {
@@ -142,13 +144,17 @@
     
     /* Center the nav */
     .header-content {
-        position: relative;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        width: 100%;
     }
     
     .desktop-nav {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
+        position: relative;
+        transform: none;
+        left: auto;
+        justify-self: center;
     }
 
     /* Adjust logo and profile to stay on sides */
@@ -157,6 +163,7 @@
     }
     .profile-container {
         z-index: 10;
+        justify-self: end;
     }
 }
 
