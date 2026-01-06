@@ -7,6 +7,15 @@
     gap: var(--space-xl);
 }
 
+@media (min-width: 768px) {
+    .book-detail {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-3xl);
+        align-items: start;
+    }
+}
+
 .book-hero {
     display: flex;
     flex-direction: column;
@@ -17,11 +26,15 @@
 
 @media (min-width: 768px) {
     .book-hero {
-        flex-direction: row;
-        align-items: flex-start;
-        text-align: left;
-        gap: var(--space-2xl);
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: var(--space-lg);
         padding: 0;
+        grid-column: 1;
+        grid-row: 1;
+        position: sticky;
+        top: var(--space-xl);
     }
 
     .book-cover-large-wrapper {
@@ -30,23 +43,23 @@
     }
 
     .book-cover-large, .book-cover-placeholder-large {
-        width: 240px;
-        height: 360px; /* Force aspect ratio */
+        width: 280px;
+        height: 420px;
     }
 
     .book-meta {
-        align-items: flex-start;
-        padding-top: var(--space-md);
+        align-items: center;
+        padding-top: 0;
         flex: 1;
     }
 
     .book-detail-title {
-        font-size: 2.5rem;
+        font-size: 2rem;
         max-width: 100%;
     }
 
     .book-tags {
-        justify-content: flex-start;
+        justify-content: center;
     }
 }
 
@@ -64,6 +77,14 @@
     z-index: 2;
 }
 
+@media (min-width: 768px) {
+    .book-cover-large {
+        width: 280px;
+        height: 420px;
+        object-fit: cover;
+    }
+}
+
 .book-cover-placeholder-large {
     width: 160px;
     height: 240px;
@@ -75,6 +96,13 @@
     color: var(--text-muted);
     position: relative;
     z-index: 2;
+}
+
+@media (min-width: 768px) {
+    .book-cover-placeholder-large {
+        width: 280px;
+        height: 420px;
+    }
 }
 
 .book-cover-glow {
@@ -115,28 +143,40 @@
     flex-wrap: wrap;
     justify-content: center;
     gap: var(--space-sm);
-    margin-top: var(--space-sm);
+    margin-top: var(--space-md);
 }
 
 .tag {
-    padding: 6px 12px;
+    padding: 8px 14px;
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-full);
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--text-secondary);
+    font-weight: 500;
+    transition: all var(--transition-normal);
+}
+
+.tag:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--glass-border);
 }
 
 .tag-pages {
     border-color: var(--color-primary);
     color: var(--color-primary-light);
+    background: rgba(124, 58, 237, 0.1);
 }
 
 .book-rating-large {
     display: flex;
     align-items: center;
-    gap: var(--space-sm);
-    margin-top: var(--space-md);
+    gap: var(--space-md);
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: var(--radius-lg);
 }
 
 .stars {
@@ -148,6 +188,8 @@
 .rating-text {
     font-size: 0.875rem;
     color: var(--text-secondary);
+    font-weight: 500;
+}
 }
 
 .book-details-section {
@@ -160,18 +202,23 @@
 
 @media (min-width: 768px) {
     .book-details-section {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        column-gap: var(--space-2xl);
-        row-gap: var(--space-sm);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+        grid-column: 2;
+        grid-row: 1;
+        margin: 0;
+        padding: var(--space-xl);
     }
     
     .detail-row {
+        border-bottom: none;
+        padding: var(--space-md) 0;
         border-bottom: 1px solid var(--glass-border);
     }
     
-    .detail-row:nth-last-child(-n+2) {
-        border-bottom: none; /* Remove border for last row items in grid */
+    .detail-row:last-child {
+        border-bottom: none;
     }
 }
 
@@ -188,30 +235,49 @@
 
 .detail-label {
     color: var(--text-muted);
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .detail-value {
     color: var(--text-primary);
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     font-weight: 500;
     text-align: right;
+}
+
+@media (min-width: 768px) {
+    .detail-value {
+        text-align: left;
+    }
 }
 
 .book-description {
     margin: var(--space-lg) 0;
 }
 
+@media (min-width: 768px) {
+    .book-description {
+        grid-column: 2;
+        grid-row: 2;
+        margin: 0;
+    }
+}
+
 .book-description h3 {
-    font-size: 1rem;
+    font-size: 1.125rem;
     color: var(--text-primary);
     margin-bottom: var(--space-md);
+    font-weight: 600;
 }
 
 .book-description p {
     font-size: 0.9375rem;
-    line-height: 1.7;
+    line-height: 1.8;
     color: var(--text-secondary);
+}
 }
 
 .generate-section {
@@ -222,33 +288,46 @@
     margin-top: var(--space-xl);
 }
 
+@media (min-width: 768px) {
+    .generate-section {
+        grid-column: 2;
+        grid-row: 3;
+        margin-top: 0;
+    }
+}
+
 .generate-info {
     display: flex;
     gap: var(--space-md);
     margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid rgba(124, 58, 237, 0.2);
 }
 
 .generate-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 56px;
     background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dark) 100%);
     border-radius: var(--radius-lg);
     color: var(--bg-primary);
     flex-shrink: 0;
+    font-size: 1.5rem;
 }
 
 .generate-text h4 {
-    font-size: 1rem;
+    font-size: 1.125rem;
     color: var(--text-primary);
     margin-bottom: var(--space-xs);
+    font-weight: 600;
 }
 
 .generate-text p {
     font-size: 0.875rem;
     color: var(--text-secondary);
+    line-height: 1.5;
 }
 
 .btn-spinner {
@@ -278,17 +357,19 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-lg);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal);
 }
 
 .model-option:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
 }
 
 .model-option.active {
-    background: rgba(124, 58, 237, 0.1);
+    background: rgba(124, 58, 237, 0.15);
     border-color: var(--color-primary);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
 }
 
 .model-name {
