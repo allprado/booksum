@@ -1289,12 +1289,10 @@ Gere o resumo final em português brasileiro:`
           <div className="home-view animate-fadeIn">
             <div className="hero-section">
               <h1 className="hero-title">
-                Resumos de até 60 minutos, para aprender de verdade
-                Resumos de <br />
-                <span className="text-gradient">Livros</span> em Áudio
+                Resumos de até <span className="text-accent">60 minutos</span>, para aprender de verdade
               </h1>
               <p className="hero-subtitle">
-                Aprenda o essencial de qualquer livro em apenas 20 minutos.
+                Aprenda o essencial de qualquer livro com resumos em texto e áudio
               </p>
             </div>
 

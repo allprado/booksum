@@ -1,22 +1,57 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useSupabaseIntegration } from '../hooks/useSupabaseIntegration'
+import Modal from './Modal'
 import './Library.css'
 
 function Library({ onSelectBook, onReadSummary, onDeleteFromLibrary }) {
-  const { user } = useAuth()
+  const { user, signInWithGoogle } = useAuth()
   const { userLibrary, checkAndLoadSummary } = useSupabaseIntegration()
   const [openMenuId, setOpenMenuId] = useState(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  const handleSignIn = async () => {
+    try {
+      await signInWithGoogle()
+      setShowAuthModal(false)
+    } catch (error) {
+      console.error('Error signing in:', error)
+      alert('Erro ao fazer login. Tente novamente.')
+    }
+  }
 
   if (!user) {
     return (
-      <div className="library-empty">
-        <div className="empty-state">
-          <span className="material-symbols-rounded">library_books</span>
-          <h3>Faça login para ver sua biblioteca</h3>
-          <p>Salve seus resumos favoritos e acesse de qualquer dispositivo</p>
+      <>
+        <div className="library-empty">
+          <div className="empty-state">
+            <span className="material-symbols-rounded">library_books</span>
+            <h3>Faça login para ver sua biblioteca</h3>
+            <p>Salve seus resumos favoritos e acesse de qualquer dispositivo</p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => setShowAuthModal(true)}
+            >
+              Continuar com Google
+            </button>
+          </div>
         </div>
-      </div>
+        <Modal
+          isOpen={showAuthModal}
+          title="Fazer Login"
+          message="Para acessar sua biblioteca, você precisa fazer login com sua conta Google."
+          type="info"
+          onClose={() => setShowAuthModal(false)}
+          actions={[
+            {
+              label: 'Continuar com Google',
+              onClick: handleSignIn,
+              isPrimary: true
+            }
+          ]}
+          showCloseButton={true}
+        />
+      </>
     )
   }
 

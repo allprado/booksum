@@ -26,13 +26,9 @@
   .main-content {
     padding: var(--space-xl);
     padding-top: var(--space-2xl);
-    padding-bottom: var(--space-2xl);
+    padding-bottom: calc(120px + var(--space-2xl));
   }
-
-  /* Reduce padding bottom since nav moves to top/side */
-  .main-content {
-    padding-bottom: var(--space-2xl);
-  }
+}
 }
 
 /* Hero Section */
@@ -65,11 +61,23 @@
   font-style: italic;
 }
 
+.text-accent {
+  color: var(--color-accent);
+}
+
 .hero-subtitle {
   font-size: 1.125rem;
   color: var(--text-secondary);
-  max-width: 280px;
   line-height: 1.6;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .hero-subtitle {
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 /* Home View */

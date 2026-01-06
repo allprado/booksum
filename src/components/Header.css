@@ -142,19 +142,17 @@
         box-shadow: 0 4px 12px var(--color-primary-glow);
     }
     
-    /* Center the nav */
+    /* Hide nav in desktop - will move to footer */
+    .desktop-nav {
+        display: none;
+    }
+
+    /* Center the header */
     .header-content {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
+        display: flex;
+        justify-content: space-between;
         align-items: center;
         width: 100%;
-    }
-    
-    .desktop-nav {
-        position: relative;
-        transform: none;
-        left: auto;
-        justify-self: center;
     }
 
     /* Adjust logo and profile to stay on sides */
