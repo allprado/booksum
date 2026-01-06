@@ -25,56 +25,6 @@
     position: relative;
 }
 
-/* Tablet & Desktop Modal Improvements */
-@media (min-width: 768px) {
-    .modal {
-        max-width: 550px;
-        padding: 32px;
-        border-radius: 16px;
-    }
-    
-    .modal-header {
-        margin-bottom: 20px;
-    }
-    
-    .modal-icon {
-        width: 56px;
-        height: 56px;
-    }
-    
-    .modal-title {
-        font-size: 24px;
-    }
-    
-    .modal-content {
-        font-size: 17px !important;
-        line-height: 1.9;
-    }
-}
-
-@media (min-width: 1024px) {
-    .modal {
-        max-width: 600px;
-        padding: 40px;
-        border-radius: 20px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-    }
-    
-    .modal-icon {
-        width: 60px;
-        height: 60px;
-    }
-    
-    .modal-title {
-        font-size: 26px;
-    }
-    
-    .modal-content {
-        margin: 20px 0 32px 0;
-        font-size: 18px !important;
-    }
-}
-
 .modal-header {
     display: flex;
     align-items: flex-start;

@@ -98,7 +98,69 @@
 
 .header-spacer {
     width: 40px;
-}/* Profile Menu */
+    height: 40px;
+}
+
+/* Desktop Navigation */
+.desktop-nav {
+    display: none;
+}
+
+@media (min-width: 768px) {
+    .desktop-nav {
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+        background: rgba(60, 51, 91, 0.4);
+        padding: var(--space-xs) var(--space-sm);
+        border-radius: var(--radius-full);
+        border: 1px solid var(--glass-border);
+    }
+
+    .desktop-nav-item {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        padding: var(--space-sm) var(--space-lg);
+        border-radius: var(--radius-full);
+        transition: all var(--transition-normal);
+    }
+
+    .desktop-nav-item:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .desktop-nav-item.active {
+        color: var(--text-primary);
+        background: var(--color-primary);
+        box-shadow: 0 4px 12px var(--color-primary-glow);
+    }
+    
+    /* Center the nav */
+    .header-content {
+        position: relative;
+    }
+    
+    .desktop-nav {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    /* Adjust logo and profile to stay on sides */
+    .logo, .header-btn.back-btn {
+        z-index: 10;
+    }
+    .profile-container {
+        z-index: 10;
+    }
+}
+
+/* Profile Menu */
 .profile-container {
     position: relative;
 }
@@ -235,138 +297,4 @@
 .google-icon {
     width: 20px;
     height: 20px;
-}
-
-/* ==========================================
-   TABLET & DESKTOP RESPONSIVE STYLES
-   ========================================== */
-
-/* Tablet */
-@media (min-width: 768px) {
-    .header {
-        padding: var(--space-lg) var(--space-xl);
-        padding-top: calc(var(--space-lg) + env(safe-area-inset-top));
-    }
-    
-    .header-content {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-    
-    .header-btn {
-        width: 44px;
-        height: 44px;
-    }
-    
-    .logo-icon {
-        width: 52px;
-        height: 52px;
-    }
-    
-    .logo-icon .material-symbols-rounded {
-        font-size: 1.75rem;
-    }
-    
-    .logo-text {
-        font-size: 2rem;
-    }
-    
-    .profile-avatar {
-        width: 42px;
-        height: 42px;
-    }
-    
-    .profile-menu {
-        min-width: 280px;
-    }
-}
-
-/* Desktop */
-@media (min-width: 1024px) {
-    .header {
-        padding: var(--space-lg) var(--space-2xl);
-    }
-    
-    .header-content {
-        max-width: 1400px;
-    }
-    
-    .header-btn {
-        width: 48px;
-        height: 48px;
-        transition: all var(--transition-normal), transform var(--transition-fast);
-    }
-    
-    .header-btn:hover {
-        background: var(--glass-bg);
-        color: var(--text-primary);
-        transform: scale(1.05);
-    }
-    
-    .logo:hover {
-        transform: scale(1.02);
-    }
-    
-    .logo-icon {
-        width: 56px;
-        height: 56px;
-        transition: all var(--transition-normal);
-    }
-    
-    .logo:hover .logo-icon {
-        box-shadow: 0 12px 30px var(--color-primary-glow);
-    }
-    
-    .logo-text {
-        font-size: 2.125rem;
-    }
-    
-    .profile-avatar {
-        width: 44px;
-        height: 44px;
-        transition: transform var(--transition-fast);
-    }
-    
-    .profile-avatar:hover {
-        transform: scale(1.05);
-    }
-    
-    .profile-menu {
-        min-width: 300px;
-        padding: var(--space-lg);
-    }
-    
-    .profile-name {
-        font-size: 1rem;
-    }
-    
-    .profile-email {
-        font-size: 0.875rem;
-    }
-    
-    .profile-menu-item {
-        padding: var(--space-md) var(--space-lg);
-        font-size: 1rem;
-        border-radius: var(--radius-lg);
-    }
-}
-
-/* Large Desktop */
-@media (min-width: 1440px) {
-    .header-content {
-        max-width: 1600px;
-    }
-    
-    .logo-icon {
-        width: 60px;
-        height: 60px;
-    }
-    
-    .logo-icon .material-symbols-rounded {
-        font-size: 2rem;
-    }
-    
-    .logo-text {
-        font-size: 2.25rem;
-    }
 }

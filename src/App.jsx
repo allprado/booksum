@@ -1275,6 +1275,11 @@ Gere o resumo final em português brasileiro:`
         onBack={view !== 'home' ? handleBack : null}
         onHome={handleHome}
         showLogo={view === 'home'}
+        currentView={view}
+        onNavigate={(newView) => {
+          setView(newView)
+          window.scrollTo(0, 0)
+        }}
       />
 
       <main className="main-content">

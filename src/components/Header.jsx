@@ -3,10 +3,11 @@ import { useAuth } from '../context/AuthContext'
 import Modal from './Modal'
 import './Header.css'
 
-function Header({ onBack, onHome, showLogo }) {
+function Header({ onBack, onHome, showLogo, currentView, onNavigate }) {
     const { user, signInWithGoogle, signOut } = useAuth()
     const [showProfileMenu, setShowProfileMenu] = useState(false)
     const [showAuthModal, setShowAuthModal] = useState(false)
+
 
     const handleProfileClick = () => {
         if (user) {
@@ -71,6 +72,30 @@ function Header({ onBack, onHome, showLogo }) {
                                 Resume<span className="logo-accent">Aí</span>
                             </span>
                         </div>
+                    )}
+
+                    {/* Desktop Navigation */}
+                    {onNavigate && (
+                        <nav className="desktop-nav">
+                            <button 
+                                className={`desktop-nav-item ${currentView === 'home' ? 'active' : ''}`}
+                                onClick={() => onNavigate('home')}
+                            >
+                                Buscar
+                            </button>
+                            <button 
+                                className={`desktop-nav-item ${currentView === 'recommended' ? 'active' : ''}`}
+                                onClick={() => onNavigate('recommended')}
+                            >
+                                Recomendados
+                            </button>
+                            <button 
+                                className={`desktop-nav-item ${currentView === 'library' ? 'active' : ''}`}
+                                onClick={() => onNavigate('library')}
+                            >
+                                Biblioteca
+                            </button>
+                        </nav>
                     )}
 
                     <div className="profile-container">
