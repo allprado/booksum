@@ -248,27 +248,6 @@ export async function addToUserLibrary(userId, bookId, readingProgress = {}) {
   }
 }
 
-// Remover livro da biblioteca do usuário
-export async function removeFromUserLibrary(userId, bookId) {
-  try {
-    const { error } = await supabase
-      .from('user_libraries')
-      .delete()
-      .eq('user_id', userId)
-      .eq('book_id', bookId)
-
-    if (error) {
-      console.error('Error removing from library:', error)
-      return { error }
-    }
-
-    return { error: null }
-  } catch (error) {
-    console.error('Error in removeFromUserLibrary:', error)
-    return { error }
-  }
-}
-
 // Buscar biblioteca do usuário
 export async function getUserLibrary(userId) {
   try {
