@@ -1288,7 +1288,8 @@ Gere o resumo final em português brasileiro:`
         {view === 'home' && (
           <div className="home-view animate-fadeIn">
             <div className="hero-section">
-              <hResumos de até 60 minutos, para aprender de verdade
+              <h1 className="hero-title">
+                Resumos de até 60 minutos, para aprender de verdade
                 Resumos de <br />
                 <span className="text-gradient">Livros</span> em Áudio
               </h1>
