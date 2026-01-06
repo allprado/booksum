@@ -287,20 +287,21 @@ function App({ isAdminMode = false }) {
       return
     }
 
-    setLoading(true)
+    // Limpar estados antes de carregar
     setSelectedBook(book)
     setSummary(null)
     setAudioUrl(null)
     setAudioChapters([])
     setSelectedBookHasSummary(false)
+    setLoading(true)
     
     try {
       // Se o livro já veio da biblioteca com resumo carregado, usa direto
       if (book.summaries && book.summaries.length > 0) {
         const existing = book.summaries[0]?.content
         if (existing?.fullText) {
-          setSelectedBookHasSummary(true)
           setSummary(existing.fullText)
+          setSelectedBookHasSummary(true)
           
           // Tentar carregar áudios também
           const bookId = book.id // ID do Supabase
@@ -311,9 +312,9 @@ function App({ isAdminMode = false }) {
             }
           }
           
-          setView('summary')
-          showToast('Resumo carregado!', 'success')
           setLoading(false)
+          setView('summary') // Mudar view APÓS carregar tudo
+          showToast('Resumo carregado!', 'success')
           return
         }
       }
@@ -323,8 +324,8 @@ function App({ isAdminMode = false }) {
       if (bookId) {
         const data = await supabase.getSummaryFromDB(bookId)
         if (data) {
-          setSelectedBookHasSummary(true)
           setSummary(data.content?.fullText || '')
+          setSelectedBookHasSummary(true)
           
           // Tentar carregar áudios também
           const existingAudios = await supabase.checkAndLoadAudios(bookId, selectedVoice, speechRate)
@@ -332,19 +333,19 @@ function App({ isAdminMode = false }) {
             setAudioChapters(existingAudios)
           }
           
-          setView('summary')
-          showToast('Resumo carregado!', 'success')
           setLoading(false)
+          setView('summary') // Mudar view APÓS carregar tudo
+          showToast('Resumo carregado!', 'success')
           return
         }
       }
       
-      showToast('Resumo não encontrado para este livro.', 'error')
       setLoading(false)
+      showToast('Resumo não encontrado para este livro.', 'error')
     } catch (error) {
       console.error('Erro ao carregar resumo:', error)
-      showToast('Erro ao carregar resumo', 'error')
       setLoading(false)
+      showToast('Erro ao carregar resumo', 'error')
     }
   }
 
