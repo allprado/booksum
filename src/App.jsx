@@ -28,6 +28,7 @@ function App({ isAdminMode = false }) {
   const [isSearching, setIsSearching] = useState(false)
   const [toast, setToast] = useState(null)
   const [currentQuery, setCurrentQuery] = useState('')
+  const [selectedBookHasSummary, setSelectedBookHasSummary] = useState(false) // Rastrear se livro selecionado tem resumo
   const [hasMoreResults, setHasMoreResults] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -253,6 +254,7 @@ function App({ isAdminMode = false }) {
     setSummary(null)
     setAudioUrl(null)
     setAudioChapters([])
+    setSelectedBookHasSummary(false) // Reset
     setView('detail')
 
     // Tentar buscar/criar o livro no banco e verificar se tem resumo
@@ -261,6 +263,7 @@ function App({ isAdminMode = false }) {
       // Verificar se já existe resumo
       const existingSummary = await supabase.checkAndLoadSummary(bookId)
       if (existingSummary) {
+        setSelectedBookHasSummary(true) // Marcamos que tem resumo
         // Se já existe, podemos pré-carregar os áudios também
         const existingAudios = await supabase.checkAndLoadAudios(bookId, selectedVoice, speechRate)
         if (existingAudios.length > 0) {
@@ -1216,7 +1219,7 @@ Gere o resumo final em português brasileiro:`
             model={summaryModel}
             onModelChange={setSummaryModel}
             showModelSelector={isAdminMode}
-            hasSummary={supabase.booksSummaryStatus[selectedBook.id]}
+            hasSummary={selectedBookHasSummary || supabase.booksSummaryStatus[selectedBook.id]}
             onReadSummary={async () => {
               // Verificar autenticação
               if (!supabase.user) {
